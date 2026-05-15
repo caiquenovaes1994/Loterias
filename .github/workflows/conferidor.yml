@@ -1,0 +1,30 @@
+name: Conferidor de Loteria
+
+on:
+  schedule:
+    # Configurado para rodar às 21:30 BRT (00:30 UTC do dia seguinte)
+    # Lembrar que o GitHub usa o fuso UTC. 
+    # Dias: 1 (Segunda/Terça UTC), 4 (Quinta UTC), 7 (Sábado/Domingo UTC) - Ajustado para os sorteios comuns
+    - cron: '30 0 * * 0,1,4'
+  workflow_dispatch: # Permite que você clique em um botão e rode manualmente quando quiser
+
+jobs:
+  conferir:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clonar o Repositório
+      uses: actions/checkout@v4
+
+    - name: Configurar o Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Instalar Dependências
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+
+    - name: Executar Conferência de Jogos
+      run: python conferidor.py
