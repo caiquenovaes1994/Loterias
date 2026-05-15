@@ -1,19 +1,74 @@
 import os
 import requests
+import json
 
-# 🎯 Configure aqui os seus jogos fixos
-MEUS_JOGOS = {
-    "megasena": [
-        [4, 8, 15, 16, 23, 42],
-        [10, 20, 30, 40, 50, 60]
-    ],
-    "lotofacil": [
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    ]
+DE_PARA_LOTERIAS = {
+    # Mega-Sena
+    "mega-sena": "megasena",
+    "mega sena": "megasena",
+    "megasena": "megasena",
+    "mega-senha": "megasena",
+    "mega-sena da virada": "megasena",
+    "mega da virada": "megasena",
+    "megadavirada": "megasena",
+    
+    # Lotofácil
+    "lotofácil": "lotofacil",
+    "lotofacil": "lotofacil",
+    "loto fácil": "lotofacil",
+    "loto facil": "lotofacil",
+    
+    # Quina
+    "quina": "quina",
+    
+    # Lotomania
+    "lotomania": "lotomania",
+    "loto mania": "lotomania",
+    
+    # Timemania
+    "timemania": "timemania",
+    "time mania": "timemania",
+    
+    # Dupla Sena
+    "dupla sena": "duplasena",
+    "dupla-sena": "duplasena",
+    "duplasena": "duplasena",
+    
+    # Federal
+    "federal": "federal",
+    "loteria federal": "federal",
+    
+    # Dia de Sorte
+    "dia de sorte": "diadesorte",
+    "diadesorte": "diadesorte",
+    
+    # Super Sete
+    "super sete": "supersete",
+    "supersete": "supersete",
+    
+    # +Milionária
+    "mais milionária": "maismilionaria",
+    "mais milionaria": "maismilionaria",
+    "maismilionaria": "maismilionaria",
+    "+milionaria": "maismilionaria",
+    "+milionária": "maismilionaria"
 }
 
+def normalizar_nome_loteria(nome_usuario):
+    """Normaliza o nome da loteria para o padrão esperado pela API."""
+    nome_limpo = nome_usuario.lower().strip()
+    return DE_PARA_LOTERIAS.get(nome_limpo, nome_limpo)
+
+def carregar_json(nome_arquivo):
+    if os.path.exists(nome_arquivo):
+        with open(nome_arquivo, 'r', encoding='utf-8') as f:
+            try:
+                return json.load(f)
+            except:
+                return {}
+    return {}
+
 def enviar_para_resumo(texto):
-    """Escreve o resultado no dashboard do GitHub Actions ou no console local."""
     summary_file = os.environ.get('GITHUB_STEP_SUMMARY')
     if summary_file:
         with open(summary_file, 'a', encoding='utf-8') as f:
@@ -21,51 +76,95 @@ def enviar_para_resumo(texto):
     else:
         print(texto)
 
-def conferir_loterias():
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
+def processar_lista_jogos(jogos, loteria, dezenas_sort, trevos_sort, time_sort, label):
+    if not jogos:
+        return
     
-    enviar_para_resumo("## 🎰 Resultado da Conferência Automática\n")
+    enviar_para_resumo(f"#### {label}")
+    for i, jogo_info in enumerate(jogos, 1):
+        dezenas_user = []
+        trevos_user = []
+        time_user = ""
+        
+        if isinstance(jogo_info, dict):
+            dezenas_user = [int(x.strip()) for x in jogo_info.get("dezenas", "").replace('-', ' ').split()]
+            trevos_user = [int(x.strip()) for x in jogo_info.get("trevos", "").replace('-', ' ').split()] if "trevos" in jogo_info else []
+            time_user = jogo_info.get("time", "").strip()
+        else:
+            dezenas_user = [int(x.strip()) for x in jogo_info.replace('-', ' ').split()]
+        
+        acertos_dez = set(dezenas_user).intersection(set(dezenas_sort))
+        qtd_dez = len(acertos_dez)
+        acertos_tre = set(trevos_user).intersection(set(trevos_sort))
+        qtd_tre = len(acertos_tre)
+        acertou_time = time_user.lower() == time_sort.lower() if time_user and time_sort else False
+        
+        # Lógica de prêmios (usando nome normalizado da loteria)
+        premio = ""
+        if (loteria == "megasena" and qtd_dez >= 4) or (loteria == "lotofacil" and qtd_dez >= 11):
+            premio = "💰 **PREMIAÇÃO!**"
+        elif loteria == "maismilionaria" and ((qtd_dez >= 2 and qtd_tre >= 1) or (qtd_tre == 2) or (qtd_dez >= 3)):
+            premio = "💰 **PREMIAÇÃO!**"
+        elif loteria == "timemania" and (qtd_dez >= 3 or acertou_time):
+            premio = "💰 **PREMIAÇÃO!**"
+            
+        # Formatação de saída
+        if loteria == "maismilionaria":
+            enviar_para_resumo(f"* **Jogo {i}:** `{sorted(dezenas_user)}` + T:`{sorted(trevos_user)}` | Acertos: `{qtd_dez}D+{qtd_tre}T` {premio}")
+        elif loteria == "timemania":
+            t_status = "✅" if acertou_time else "❌"
+            enviar_para_resumo(f"* **Jogo {i}:** `{sorted(dezenas_user)}` | Acertos: `{qtd_dez}` | Time {time_user}: {t_status} {premio}")
+        else:
+            enviar_para_resumo(f"* **Jogo {i}:** `{sorted(dezenas_user)}` | Acertos: `{qtd_dez}` {premio}")
 
-    for loteria, jogos in MEUS_JOGOS.items():
-        url = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/{loteria}"
+def conferir_loterias():
+    pessoais = carregar_json('jogos_pessoais.json')
+    bolao = carregar_json('jogos_bolao.json')
+    
+    # Lista todas as loterias citadas em ambos os arquivos
+    todas_loterias_brutas = set(list(pessoais.keys()) + list(bolao.keys()))
+    
+    headers = {"User-Agent": "Mozilla/5.0"}
+    enviar_para_resumo("## 🎰 Conferência Consolidada\n")
+
+    # Dicionário para evitar processar a mesma loteria normalizada duas vezes
+    # (caso o usuário use "MegaSena" em um arquivo e "mega-sena" no outro)
+    loterias_processadas = set()
+
+    for nome_bruto in todas_loterias_brutas:
+        loteria = normalizar_nome_loteria(nome_bruto)
+        
+        if loteria in loterias_processadas:
+            continue
+        loterias_processadas.add(loteria)
+
+        # Busca concurso em ambos os arquivos (usando a chave original ou normalizada)
+        # Para ser robusto, verificamos tanto a chave bruta quanto as outras possíveis
+        conc_p = pessoais.get(nome_bruto, {}).get("concurso")
+        conc_b = bolao.get(nome_bruto, {}).get("concurso")
+        concurso = conc_p or conc_b
+        
+        endpoint = f"{loteria}/{concurso}" if concurso else loteria
+        url = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/{endpoint}"
         
         try:
-            response = requests.get(url, headers=headers, timeout=10)
-            if response.status_code != 200:
-                enviar_para_resumo(f"❌ Erro ao acessar API da {loteria.upper()} (Status: {response.status_code})")
-                continue
-                
-            dados = response.json()
-            concurso = dados.get("numero")
-            data_sorteio = dados.get("dataApuracao")
+            res = requests.get(url, headers=headers, timeout=15).json()
+            num = res.get("numero")
+            data = res.get("dataApuracao")
+            dez_sort = [int(n) for n in res.get("listaDezenas", [])]
+            tre_sort = [int(n) for n in res.get("listaTrevoSorteado", [])]
+            time_sort = res.get("nomeTimeCoracaoSorteado", "").strip()
             
-            # Garante os números sorteados formatados como inteiros
-            dezenas_sorteadas = [int(n) for n in dados.get("listaDezenas", [])]
+            enviar_para_resumo(f"### 📊 {loteria.upper()} - Concurso {num} ({data})")
             
-            if not dezenas_sorteadas:
-                enviar_para_resumo(f"⚠️ Não foi possível ler as dezenas do concurso {concurso} da {loteria.upper()}.")
-                continue
-
-            enviar_para_resumo(f"### 📊 {loteria.upper()} - Concurso {concurso} ({data_sorteio})")
-            enviar_para_resumo(f"**Números Sorteados:** `{sorted(dezenas_sorteadas)}` \n")
+            # Processa cada categoria (buscando pelo nome bruto original)
+            processar_lista_jogos(pessoais.get(nome_bruto, {}).get("jogos"), loteria, dez_sort, tre_sort, time_sort, "👤 Jogos Pessoais")
+            processar_lista_jogos(bolao.get(nome_bruto, {}).get("jogos"), loteria, dez_sort, tre_sort, time_sort, "👥 Jogos de Bolão")
             
-            for i, jogo in enumerate(jogos, 1):
-                # Identifica a interseção dos números
-                acertos = set(jogo).intersection(set(dezenas_sorteadas))
-                qtd_acertos = len(acertos)
-                
-                # Formatação visual do resultado
-                status = "🟢 GANHOU ALGO?!" if qtd_acertos >= 4 else "⚪ Não foi dessa vez"
-                enviar_para_resumo(
-                    f"* **Jogo {i}:** `{sorted(jogo)}` | **Acertos:** `{qtd_acertos}` {status}\n"
-                    f"  * *Números acertados:* {sorted(list(acertos)) if acertos else 'Nenhum'}"
-                )
             enviar_para_resumo("\n---")
-            
         except Exception as e:
-            enviar_para_resumo(f"💥 Erro crítico ao processar {loteria.upper()}: {str(e)}")
+            # Mostra o nome original no erro para facilitar identificação
+            enviar_para_resumo(f"💥 Erro em {nome_bruto}: {e}")
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     conferir_loterias()
