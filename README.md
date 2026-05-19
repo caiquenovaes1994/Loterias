@@ -1,8 +1,8 @@
 # 🎰 Loterias Automáticas: Conferidor Consolidado Financeiro
 
-![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
-![GitHub Actions](https://img.shields.io/badge/github%20actions-%232671E5.svg?style=for-the-badge&logo=githubactions&logoColor=white)
-![JSON](https://img.shields.io/badge/json-5E5E5E?style=for-the-badge&logo=json&logoColor=white)
+[![Python](https://img.shields.io/badge/Python-3.10-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-v4%20%2F%20v5-2671E5?style=flat&logo=githubactions&logoColor=white)](https://github.com/features/actions)
+[![JSON](https://img.shields.io/badge/JSON-5E5E5E?style=flat&logo=json&logoColor=white)](https://www.json.org/)
 
 Uma solução automatizada e robusta para conferência de jogos das Loterias Caixa, integrando automação via GitHub Actions, relatórios visuais e análise financeira detalhada de prêmios.
 
@@ -41,5 +41,6 @@ _Desenvolvido para automatizar a sorte e organizar a fé._ 🍀
 
 ### Caique Novaes
 
-[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/caiquenovaes1994)
-[![Gmail](https://img.shields.io/badge/Gmail-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:caiquenovaes1994@gmail.com)
+[![GitHub](https://img.shields.io/badge/GitHub-caiquenovaes1994-181717?style=flat&logo=github&logoColor=white)](https://github.com/caiquenovaes1994)
+&nbsp;
+[![Gmail](https://img.shields.io/badge/Gmail-caiquenovaes1994@gmail.com-EA4335?style=flat&logo=gmail&logoColor=white)](mailto:caiquenovaes1994@gmail.com)
