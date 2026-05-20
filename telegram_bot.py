@@ -250,16 +250,19 @@ def executar_modo_ci():
     """
     Execução única: sem loop, sem threads de espera.
     Lógica baseada em quando o workflow é disparado:
-      - Se o sorteio é HOJE: tenta buscar resultado e conferir jogos.
-      - Se o sorteio é AMANHÃ: envia lembrete de 24h.
-    O workflow deve ser configurado para rodar nos horários certos.
+      - Se o sorteio é HOJE (pós-hora): busca resultado e confere jogos.
+      - Se o sorteio é HOJE (pré-hora): aviso com contagem regressiva.
+      - Se o sorteio é AMANHÃ: lembrete de 24h.
+      - Se não há nada hoje/amanhã: envia digest dos próximos 7 dias.
     """
     log.info("🤖 Modo CI ativado.")
     jogos_data = carregar_jogos()
     agora      = datetime.now(tz=FUSO)
     hoje       = agora.date()
     amanha     = (agora + timedelta(days=1)).date()
+    limite_7d  = hoje + timedelta(days=7)
     mensagens_enviadas = 0
+    proximos: list[tuple] = []  # (dt_sorteio, loteria, concurso, emoji)
 
     for nome_bruto, config in jogos_data.items():
         loteria  = DE_PARA.get(nome_bruto, nome_bruto)
@@ -267,7 +270,11 @@ def executar_modo_ci():
         jogos    = config.get("jogos", [])
         dt_str   = config.get("data_sorteio")
 
-        if not concurso or not jogos or not dt_str:
+        if not concurso or not jogos:
+            log.info("Sem jogos registrados para %s — pulando.", loteria)
+            continue
+
+        if not dt_str:
             log.info("Sem data de sorteio para %s — pulando.", loteria)
             continue
 
@@ -278,6 +285,10 @@ def executar_modo_ci():
         data_sorteio = dt_sorteio.date()
         hora_fmt     = dt_sorteio.strftime("%H:%M")
         emoji        = EMOJIS.get(loteria, "🎰")
+
+        # Coleta para o digest semanal (inclui hoje e amanhã também)
+        if hoje <= data_sorteio <= limite_7d:
+            proximos.append((dt_sorteio, loteria, concurso, emoji))
 
         # ── Sorteio AMANHÃ: envia lembrete de 24h ──
         if data_sorteio == amanha:
@@ -290,10 +301,9 @@ def executar_modo_ci():
             if enviar_mensagem(msg):
                 mensagens_enviadas += 1
 
-        # ── Sorteio HOJE: busca resultado e confere ──
+        # ── Sorteio HOJE: busca resultado ou avisa ──
         elif data_sorteio == hoje:
             if agora >= dt_sorteio:
-                # Sorteio já deveria ter ocorrido — busca resultado
                 log.info("Buscando resultado de %s/%d...", loteria, concurso)
                 dados = None
                 for tentativa in range(1, 4):
@@ -315,22 +325,49 @@ def executar_modo_ci():
                     )
                     mensagens_enviadas += 1
             else:
-                # Sorteio ainda não ocorreu hoje — envia aviso de "hoje tem sorteio"
                 delta_min = int((dt_sorteio - agora).total_seconds() / 60)
                 msg = (
                     f"{emoji} <b>Sorteio Hoje!</b>\n\n"
                     f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
                     f"🕐 Começa às <b>{hora_fmt}</b> "
-                    f"(em aproximadamente {delta_min} minutos)\n\n"
+                    f"(em aproximadamente {delta_min} min)\n\n"
                     f"Boa sorte! 🎯"
                 )
                 if enviar_mensagem(msg):
                     mensagens_enviadas += 1
         else:
-            log.info("Sorteio de %s em %s — fora da janela de hoje/amanhã.", loteria, data_sorteio)
+            log.info("Sorteio de %s em %s — fora da janela imediata.", loteria, data_sorteio)
 
+    # ── Digest semanal: dispara quando nada foi enviado hoje/amanhã ──
     if mensagens_enviadas == 0:
-        log.info("Nenhum sorteio na janela de hoje/amanhã. Nada enviado.")
+        if proximos:
+            proximos.sort(key=lambda t: t[0])
+            data_exec = agora.strftime("%d/%m/%Y %H:%M")
+            linhas = []
+            for dt, lot, conc, em in proximos:
+                dias = (dt.date() - hoje).days
+                if dias == 0:
+                    quando = "<b>HOJE</b>"
+                elif dias == 1:
+                    quando = "<b>Amanhã</b>"
+                else:
+                    quando = f"<b>{dt.strftime('%d/%m')} ({dias} dias)</b>"
+                linhas.append(
+                    f"{em} <b>{lot.upper()}</b> #{conc}\n"
+                    f"   📅 {quando} às {dt.strftime('%H:%M')}"
+                )
+            corpo = "\n\n".join(linhas)
+            msg = (
+                f"📆 <b>Próximos Sorteios — {data_exec}</b>\n\n"
+                f"{corpo}\n\n"
+                f"<i>Nenhum alerta imediato nesta execução. "
+                f"O bot rodará novamente nos horários programados.</i> 🤖"
+            )
+            if enviar_mensagem(msg):
+                mensagens_enviadas += 1
+                log.info("📆 Digest semanal enviado (%d sorteios listados).", len(proximos))
+        else:
+            log.info("Nenhum sorteio configurado nos próximos 7 dias. Nada enviado.")
     else:
         log.info("✅ %d mensagem(ns) enviada(s) com sucesso.", mensagens_enviadas)
 
