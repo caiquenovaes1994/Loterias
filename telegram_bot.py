@@ -118,7 +118,7 @@ FAIXAS_LOTOFACIL = {15: 1, 14: 2, 13: 3, 12: 4, 11: 5}
 FAIXAS_QUINA     = {5: 1, 4: 2, 3: 3, 2: 4}
 
 EMOJIS = {
-    "megasena": "🟢",
+    "megasena": "🍀",
     "lotofacil": "🔵",
     "quina": "🟣",
     "timemania": "🟡",
@@ -248,21 +248,22 @@ def parse_data_sorteio(iso_str: str | None) -> datetime | None:
 # ─────────────────────────────────────────────
 def executar_modo_ci():
     """
-    Execução única: sem loop, sem threads de espera.
-    Lógica baseada em quando o workflow é disparado:
-      - Se o sorteio é HOJE (pós-hora): busca resultado e confere jogos.
-      - Se o sorteio é HOJE (pré-hora): aviso com contagem regressiva.
-      - Se o sorteio é AMANHÃ: lembrete de 24h.
-      - Se não há nada hoje/amanhã: envia digest dos próximos 7 dias.
+    Execução única — GitHub Actions.
+
+    Janelas de alerta (por data inteira, não horas exatas):
+      dias_ate == 7  → "Faltam 7 dias!"
+      dias_ate == 3  → "Faltam 3 dias!"
+      dias_ate == 1  → "Sorteio Amanhã!"   (24h)
+      dias_ate == 0, pré-sorteio, ≤ 2h → "Falta X minutos!"
+      dias_ate == 0, pós-sorteio       → busca resultado
+      0 < dias_ate <= 7, sem janela    → digest semanal
     """
     log.info("🤖 Modo CI ativado.")
     jogos_data = carregar_jogos()
     agora      = datetime.now(tz=FUSO)
     hoje       = agora.date()
-    amanha     = (agora + timedelta(days=1)).date()
-    limite_7d  = hoje + timedelta(days=7)
     mensagens_enviadas = 0
-    proximos: list[tuple] = []  # (dt_sorteio, loteria, concurso, emoji)
+    sem_janela: list[tuple] = []  # sorteios próximos sem alerta específico
 
     for nome_bruto, config in jogos_data.items():
         loteria  = DE_PARA.get(nome_bruto, nome_bruto)
@@ -271,105 +272,125 @@ def executar_modo_ci():
         dt_str   = config.get("data_sorteio")
 
         if not concurso or not jogos:
-            log.info("Sem jogos registrados para %s — pulando.", loteria)
+            log.info("Sem jogos para %s — pulando.", loteria)
             continue
-
         if not dt_str:
-            log.info("Sem data de sorteio para %s — pulando.", loteria)
+            log.info("Sem data_sorteio para %s — pulando.", loteria)
             continue
 
         dt_sorteio = parse_data_sorteio(dt_str)
         if not dt_sorteio:
             continue
 
-        data_sorteio = dt_sorteio.date()
-        hora_fmt     = dt_sorteio.strftime("%H:%M")
-        emoji        = EMOJIS.get(loteria, "🎰")
+        emoji    = EMOJIS.get(loteria, "🎰")
+        delta_s  = (dt_sorteio - agora).total_seconds()
+        delta_h  = delta_s / 3600
+        dias_ate = (dt_sorteio.date() - hoje).days   # dias completos até o sorteio
+        data_fmt = dt_sorteio.strftime("%d/%m/%Y")
+        hora_fmt = dt_sorteio.strftime("%H:%M")
+        msg      = None
 
-        # Coleta para o digest semanal (inclui hoje e amanhã também)
-        if hoje <= data_sorteio <= limite_7d:
-            proximos.append((dt_sorteio, loteria, concurso, emoji))
+        # ── Pós-sorteio: busca resultado ──────────────────────────────
+        if delta_s < 0:
+            log.info("Buscando resultado de %s/%d...", loteria, concurso)
+            dados = None
+            for tentativa in range(1, 4):
+                dados = buscar_resultado(loteria, concurso)
+                if dados and dados.get("listaDezenas"):
+                    break
+                log.warning("Tentativa %d falhou. Aguardando 60s...", tentativa)
+                time.sleep(60)
+            if dados and dados.get("listaDezenas"):
+                msg = montar_mensagem_resultado(loteria, dados, jogos)
+            else:
+                msg = (
+                    f"⚠️ Não consegui buscar o resultado do <b>{loteria.upper()}</b> "
+                    f"concurso <b>{concurso}</b>.\n"
+                    f"Verifique em loterias.caixa.gov.br"
+                )
 
-        # ── Sorteio AMANHÃ: envia lembrete de 24h ──
-        if data_sorteio == amanha:
+        # ── Hoje, falta ≤ 2h: aviso final ────────────────────────────
+        elif dias_ate == 0 and 0 < delta_h <= 2:
+            delta_min = int(delta_s / 60)
             msg = (
-                f"{emoji} <b>Lembrete — Sorteio Amanhã!</b>\n\n"
+                f"{emoji} <b>⏰ Falta {delta_min} minuto{'s' if delta_min != 1 else ''}!</b>\n\n"
                 f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
-                f"📅 {dt_sorteio.strftime('%d/%m/%Y')} às <b>{hora_fmt}</b>\n\n"
+                f"🕐 Sorteio às <b>{hora_fmt}</b>\n\n"
+                f"Seus jogos estão prontos. Boa sorte! 🎯"
+            )
+
+        # ── Hoje, falta > 2h: sem alerta (vai pro digest) ────────────
+        elif dias_ate == 0:
+            log.info("Sorteio de %s hoje às %s — mais de 2h, sem alerta.", loteria, hora_fmt)
+            sem_janela.append((dt_sorteio, loteria, concurso, emoji))
+
+        # ── Amanhã (dia completo = janela de 24h naturais) ────────────
+        elif dias_ate == 1:
+            msg = (
+                f"{emoji} <b>🔔 Sorteio Amanhã!</b>\n\n"
+                f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
+                f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
                 f"Seus jogos já estão registrados. Boa sorte! 🍀"
             )
-            if enviar_mensagem(msg):
-                mensagens_enviadas += 1
 
-        # ── Sorteio HOJE: busca resultado ou avisa ──
-        elif data_sorteio == hoje:
-            if agora >= dt_sorteio:
-                log.info("Buscando resultado de %s/%d...", loteria, concurso)
-                dados = None
-                for tentativa in range(1, 4):
-                    dados = buscar_resultado(loteria, concurso)
-                    if dados and dados.get("listaDezenas"):
-                        break
-                    log.warning("Tentativa %d falhou. Aguardando 60s...", tentativa)
-                    time.sleep(60)
-
-                if dados and dados.get("listaDezenas"):
-                    msg = montar_mensagem_resultado(loteria, dados, jogos)
-                    if enviar_mensagem(msg):
-                        mensagens_enviadas += 1
-                else:
-                    enviar_mensagem(
-                        f"⚠️ Não consegui buscar o resultado do <b>{loteria.upper()}</b> "
-                        f"concurso <b>{concurso}</b>.\n"
-                        f"Verifique em loterias.caixa.gov.br"
-                    )
-                    mensagens_enviadas += 1
-            else:
-                delta_min = int((dt_sorteio - agora).total_seconds() / 60)
-                msg = (
-                    f"{emoji} <b>Sorteio Hoje!</b>\n\n"
-                    f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
-                    f"🕐 Começa às <b>{hora_fmt}</b> "
-                    f"(em aproximadamente {delta_min} min)\n\n"
-                    f"Boa sorte! 🎯"
-                )
-                if enviar_mensagem(msg):
-                    mensagens_enviadas += 1
-        else:
-            log.info("Sorteio de %s em %s — fora da janela imediata.", loteria, data_sorteio)
-
-    # ── Digest semanal: dispara quando nada foi enviado hoje/amanhã ──
-    if mensagens_enviadas == 0:
-        if proximos:
-            proximos.sort(key=lambda t: t[0])
-            data_exec = agora.strftime("%d/%m/%Y %H:%M")
-            linhas = []
-            for dt, lot, conc, em in proximos:
-                dias = (dt.date() - hoje).days
-                if dias == 0:
-                    quando = "<b>HOJE</b>"
-                elif dias == 1:
-                    quando = "<b>Amanhã</b>"
-                else:
-                    quando = f"<b>{dt.strftime('%d/%m')} ({dias} dias)</b>"
-                linhas.append(
-                    f"{em} <b>{lot.upper()}</b> #{conc}\n"
-                    f"   📅 {quando} às {dt.strftime('%H:%M')}"
-                )
-            corpo = "\n\n".join(linhas)
+        # ── 3 dias antes (dia completo) ────────────────────────────────
+        elif dias_ate == 3:
             msg = (
-                f"📆 <b>Próximos Sorteios — {data_exec}</b>\n\n"
-                f"{corpo}\n\n"
-                f"<i>Nenhum alerta imediato nesta execução. "
-                f"O bot rodará novamente nos horários programados.</i> 🤖"
+                f"{emoji} <b>📅 Faltam 3 dias!</b>\n\n"
+                f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
+                f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
+                f"Prepare-se! Seus jogos estão registrados. 🍀"
             )
-            if enviar_mensagem(msg):
-                mensagens_enviadas += 1
-                log.info("📆 Digest semanal enviado (%d sorteios listados).", len(proximos))
+
+        # ── 7 dias antes (dia completo) ────────────────────────────────
+        elif dias_ate == 7:
+            msg = (
+                f"{emoji} <b>🗓️ Faltam 7 dias!</b>\n\n"
+                f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
+                f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
+                f"Anote na agenda! Seus jogos estão registrados. 🍀"
+            )
+
+        # ── Dentro dos 7 dias mas sem janela → digest ──────────────────
+        elif 0 < dias_ate <= 7:
+            log.info("Sorteio de %s em %d dias — sem alerta específico, vai pro digest.", loteria, dias_ate)
+            sem_janela.append((dt_sorteio, loteria, concurso, emoji))
+
         else:
-            log.info("Nenhum sorteio configurado nos próximos 7 dias. Nada enviado.")
+            log.info("Sorteio de %s em %d dias — fora do radar (>7 dias).", loteria, dias_ate)
+
+        if msg and enviar_mensagem(msg):
+            mensagens_enviadas += 1
+
+    # ── Digest: sorteios próximos sem alerta específico ───────────────
+    if mensagens_enviadas == 0 and sem_janela:
+        sem_janela.sort(key=lambda t: t[0])
+        data_exec = agora.strftime("%d/%m/%Y %H:%M")
+        linhas = []
+        for dt, lot, conc, em in sem_janela:
+            dias = (dt.date() - hoje).days
+            if dias == 0:
+                quando = f"<b>HOJE</b> às {dt.strftime('%H:%M')}"
+            elif dias == 1:
+                quando = f"<b>Amanhã</b> às {dt.strftime('%H:%M')}"
+            else:
+                quando = f"<b>{dt.strftime('%d/%m')} — em {dias} dias</b> às {dt.strftime('%H:%M')}"
+            linhas.append(f"{em} <b>{lot.upper()}</b> #{conc}\n   📅 {quando}")
+        corpo = "\n\n".join(linhas)
+        msg = (
+            f"📆 <b>Próximos Sorteios — {data_exec}</b>\n\n"
+            f"{corpo}\n\n"
+            f"<i>Nenhum alerta imediato nesta execução. "
+            f"O bot rodará novamente nos horários programados.</i> 🤖"
+        )
+        if enviar_mensagem(msg):
+            mensagens_enviadas += 1
+            log.info("📆 Digest enviado (%d sorteios).", len(sem_janela))
+
+    if mensagens_enviadas == 0:
+        log.info("Nenhuma janela de alerta ativa e sem sorteios no radar. Nada enviado.")
     else:
-        log.info("✅ %d mensagem(ns) enviada(s) com sucesso.", mensagens_enviadas)
+        log.info("✅ %d mensagem(ns) enviada(s).", mensagens_enviadas)
 
 
 # ─────────────────────────────────────────────
