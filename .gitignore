@@ -1,0 +1,37 @@
+# ── Python ─────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ── Ambiente virtual ───────────────────────────
+.venv/
+venv/
+env/
+.env
+
+# ── Credenciais e Secrets locais ───────────────
+# NUNCA commite tokens ou chaves de API!
+.env.local
+.env.*.local
+secrets.json
+*.token
+
+# ── IDEs ───────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*~
+
+# ── Sistema operacional ────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs e temporários ─────────────────────────
+*.log
+*.tmp

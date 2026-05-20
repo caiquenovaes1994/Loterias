@@ -1,0 +1,93 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Workflow: Bot de Telegram — Avisos de Loterias
+# ──────────────────────────────────────────────────────────────────────────────
+# Estratégia de disparo (todos os horários em UTC = BRT -3h):
+#
+#   • 18:00 UTC (15h BRT) → Lembrete "sorteio amanhã" e aviso "sorteio hoje à noite"
+#   • 21:00 UTC (18h BRT) → Aviso 1h antes dos sorteios noturnos (≈20h BRT)
+#   • 00:30 UTC (21:30 BRT) → Busca resultado (sorteios das 20h já encerrados)
+#   • 09:00 UTC (06h BRT)  → Lembrete matinal / sorteio diurno (Lotofácil 20h dia anterior)
+#
+# Resumo dos horários reais dos sorteios (BRT):
+#   Mega-Sena   : Quarta e Sábado   ~ 20h
+#   Lotofácil   : Seg–Sáb           ~ 20h
+#   Quina       : Seg–Sáb           ~ 20h
+#   +Milionária : Sáb               ~ 20h
+#   Timemania   : Terça e Sexta     ~ 20h
+#
+# Configuração de Secrets necessários no repositório:
+#   Settings → Secrets and variables → Actions → New repository secret
+#   ┌─────────────────┬───────────────────────────────────────────┐
+#   │ Nome do Secret  │ Valor                                     │
+#   ├─────────────────┼───────────────────────────────────────────┤
+#   │ TELEGRAM_TOKEN  │ Token do seu bot (ex: 8633774664:AAH...)  │
+#   │ TELEGRAM_CHAT_ID│ ID do seu chat (ex: 1060445694)           │
+#   └─────────────────┴───────────────────────────────────────────┘
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: 🎰 Bot de Loterias — Telegram
+
+on:
+  schedule:
+    # ── 15h BRT (18:00 UTC): lembrete "amanhã tem sorteio" + aviso de "hoje tem sorteio" ──
+    - cron: '0 18 * * *'
+
+    # ── 18h BRT (21:00 UTC): aviso "falta 1h" para sorteios das 20h ──
+    - cron: '0 21 * * *'
+
+    # ── 21h30 BRT (00:30 UTC): busca resultado (sorteios das 20h já encerrados) ──
+    - cron: '30 0 * * *'
+
+  # Disparo manual via interface do GitHub (útil para testar ou conferir sob demanda)
+  workflow_dispatch:
+    inputs:
+      motivo:
+        description: 'Motivo do disparo manual (opcional)'
+        required: false
+        default: 'Teste manual'
+
+permissions:
+  contents: read
+
+jobs:
+  notificar:
+    name: Verificar Sorteios e Notificar
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # ── 1. Código ──────────────────────────────────────────────────────────
+      - name: 📥 Clonar Repositório
+        uses: actions/checkout@v4
+
+      # ── 2. Python ──────────────────────────────────────────────────────────
+      - name: 🐍 Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      # ── 3. Dependências ────────────────────────────────────────────────────
+      - name: 📦 Instalar Dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ── 4. Executar bot em modo CI ─────────────────────────────────────────
+      - name: 🤖 Executar Bot (Modo CI)
+        env:
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python telegram_bot.py --ci
+
+      # ── 5. Sumário no log do workflow ──────────────────────────────────────
+      - name: 📋 Registrar Sumário
+        if: always()
+        run: |
+          echo "## 🎰 Bot de Loterias — Execução $(date -u +'%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "**Motivo:** ${{ github.event.inputs.motivo }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Trigger:** Agendamento automático (cron)" >> $GITHUB_STEP_SUMMARY
+          fi
