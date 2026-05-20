@@ -13,15 +13,15 @@ Uma solução automatizada e robusta para conferência de jogos das Loterias Cai
 
 ## 🌟 Diferenciais do Projeto
 
-- **🤖 Bot do Telegram em Tempo Real:** Receba notificações automáticas 24h antes, 1h antes e no momento do sorteio. O bot confere seus jogos automaticamente assim que o resultado é publicado.
-- **Automação Inteligente:** Execução programada (Cron) sincronizada com os horários oficiais de sorteio da Caixa.
+- **🤖 Bot do Telegram em Tempo Real:** Receba notificações automáticas 7 dias, 3 dias, 24h e 1h antes do sorteio. O bot confere seus jogos automaticamente assim que o resultado é publicado.
+- **Automação Inteligente:** Execução programada (Cron) com 5 horários diários sincronizados aos sorteios oficiais da Caixa.
 - **Cálculo Financeiro Real:** Integração com a `listaRateioPremio` da API oficial, exibindo o valor real do prêmio pago pela Caixa para cada faixa de acerto.
 - **Gestão de Bolões:** Divisão automática de prêmios entre participantes, calculando o valor exato por cota.
 - **Normalização Dinâmica:** Tratamento de nomes de loterias (ex: "Mega-Sena", "Mega da Virada", "+Milionária") garantindo que o usuário não precise se preocupar com a sintaxe exata da API.
 - **Suporte Total a Modalidades Especiais:**
   - **+Milionária:** Conferência de dezenas + trevos com faixas de premiação específicas.
   - **Timemania:** Validação automática do "Time do Coração".
-- **Relatórios Visuais:** Saída formatada em Markdown no `GITHUB_STEP_SUMMARY`, com destaque para premiações e valores monetários.
+- **Digest Inteligente:** Quando nenhuma janela de alerta está ativa, o bot envia um resumo dos próximos sorteios no radar (até 7 dias).
 
 ---
 
@@ -34,6 +34,7 @@ Loterias/
 ├── jogos_pessoais.json    # Suas apostas individuais (com datas dos concursos)
 ├── jogos_bolao.json       # Apostas em grupo com metadados financeiros
 ├── requirements.txt       # Dependências Python
+├── pyrightconfig.json     # Configuração Pyright (suprime erros de ambiente virtual)
 ├── REGRAS_LOTERIAS.md     # Referência rápida das modalidades e dias de sorteio
 ├── LICENSE                # Licença MIT
 ├── CODE_OF_CONDUCT.md     # Código de conduta do projeto
@@ -44,16 +45,18 @@ Loterias/
 
 ## 🤖 Bot do Telegram
 
-### Notificações automáticas
+### Janelas de notificação
 
-O bot monitora as datas definidas em `jogos_pessoais.json` e envia:
+O bot monitora as datas definidas em `jogos_pessoais.json` e envia alertas progressivos:
 
-| ⏱️ Momento | 📬 Mensagem |
+| ⏱️ Quando | 📬 Mensagem |
 | --- | --- |
-| 24h antes | Lembrete do sorteio com data e hora |
-| 1h antes | Aviso de que o sorteio está próximo |
-| Na hora | Confirmação de início do sorteio |
-| +30 min | Conferência completa dos seus jogos com prêmios |
+| 7 dias antes | "Faltam 7 dias!" — anote na agenda |
+| 3 dias antes | "Faltam 3 dias!" — prepare-se |
+| 1 dia antes | "Sorteio Amanhã!" — lembrete com data e hora |
+| ≤ 2h antes | "Falta X minuto(s)!" — aviso final |
+| Pós-sorteio | Conferência completa com resultado e prêmios |
+| Sem janela ativa | Digest com os próximos sorteios no radar (até 7 dias) |
 
 ### Configuração do `jogos_pessoais.json`
 
@@ -69,32 +72,39 @@ Adicione o campo `"data_sorteio"` em ISO 8601 (fuso de Brasília) para cada conc
 }
 ```
 
-> Loterias sem `data_sorteio` (ou com `null`) são conferidas apenas pelo GitHub Actions, sem alertas do bot.
+> Loterias sem `data_sorteio` (ou com `null`) são ignoradas pelo bot de alertas.
 
 ### Executar o bot localmente
 
 ```bash
 pip install -r requirements.txt
+
+# Modo daemon (contínuo, com agendamento por threads)
 python telegram_bot.py
+
+# Modo CI (execução única — igual ao GitHub Actions)
+python telegram_bot.py --ci
 ```
 
-O bot fica rodando em background e agenda os alertas automaticamente. Alertas já enviados não são duplicados, mesmo com reinicializações do loop de verificação a cada 10 minutos.
+O bot em modo daemon fica rodando em background e agenda os alertas automaticamente. Alertas já enviados não são duplicados, mesmo com reinicializações do loop de verificação a cada 10 minutos.
 
 ---
 
 ## ⚙️ GitHub Actions — Automação via Workflow
 
-O workflow principal (`telegram_bot.yml`) executa `telegram_bot.py --ci` em três horários diários, cobrindo lembretes e conferências de resultado.
+O workflow principal (`telegram_bot.yml`) executa `telegram_bot.py --ci` em **5 horários diários**, cobrindo sorteios noturnos (≈20h BRT) e diurnos (≈11h BRT).
 
 ### 🕐 Agenda de Disparos
 
-| Horário (BRT) | Horário (UTC) | Ação |
-|---|---|---|
-| 15h00 | 18:00 | Lembrete "sorteio amanhã" / aviso "sorteio hoje" |
-| 18h00 | 21:00 | Aviso "falta 1 hora" para sorteios das 20h |
-| 21h30 | 00:30 (d+1) | Busca resultado e confere seus jogos |
+| Horário (BRT) | Horário (UTC) | Finalidade |
+| --- | --- | --- |
+| 09h00 | 12:00 | Aviso "falta 1h" para sorteios das 11h |
+| 12h30 | 15:30 | Busca resultado de sorteios das 11h |
+| 15h00 | 18:00 | Alertas 7d / 3d / amanhã + digest semanal |
+| 18h00 | 21:00 | Aviso "falta 1h" para sorteios das 20h |
+| 21h30 | 00:30 (d+1) | Busca resultado de sorteios das 20h |
 
-> Todos os três horários rodam diariamente (`* * *`). O bot detecta automaticamente se o sorteio é hoje ou amanhã e age de acordo.
+> Todos os disparos rodam diariamente (`* * *`). O bot detecta automaticamente se o sorteio é hoje, amanhã ou nos próximos dias e age de acordo.
 
 ### 🔐 Configurar Secrets no GitHub
 
@@ -102,7 +112,7 @@ Antes do workflow funcionar, cadastre as credenciais do Telegram em:
 **Repositório → Settings → Secrets and variables → Actions → New repository secret**
 
 | Nome do Secret | Valor |
-|---|---|
+| --- | --- |
 | `TELEGRAM_TOKEN` | Token do bot (obtido no [@BotFather](https://t.me/BotFather)) |
 | `TELEGRAM_CHAT_ID` | ID do seu chat (use [@userinfobot](https://t.me/userinfobot)) |
 
@@ -110,7 +120,7 @@ Antes do workflow funcionar, cadastre as credenciais do Telegram em:
 
 ### ▶️ Disparo Manual
 
-Acesse **Actions → 🎰 Bot de Loterias — Telegram → Run workflow** para disparar sob demanda a qualquer momento.
+Acesse **Actions → 🎰 Bot de Loterias — Telegram → Run workflow** para disparar sob demanda a qualquer momento, com campo opcional para informar o motivo.
 
 ---
 
