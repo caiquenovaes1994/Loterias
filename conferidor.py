@@ -125,9 +125,9 @@ def processar_lista_jogos(jogos, loteria, dezenas_sort, trevos_sort, time_sort, 
     
     enviar_para_resumo(f"#### {label}")
     if meta_bolao:
-        part = meta_bolao.get("total_participantes", 1)
-        cota = meta_bolao.get("valor_cota_paga", 0.0)
-        enviar_para_resumo(f"ℹ️ *Configuração do Bolão: {part} pessoas | Cota paga: {formatar_real(cota)}*")
+        part = meta_bolao.get("quantidade_cotas", meta_bolao.get("total_participantes", 1))
+        cota = meta_bolao.get("valor_cota", meta_bolao.get("valor_cota_paga", 0.0))
+        enviar_para_resumo(f"ℹ️ *Configuração do Bolão: {part} cotas | Valor da cota: {formatar_real(cota)}*")
 
     for i, jogo_info in enumerate(jogos, 1):
         dezenas_user, trevos_user, time_user = [], [], ""
@@ -153,7 +153,7 @@ def processar_lista_jogos(jogos, loteria, dezenas_sort, trevos_sort, time_sort, 
         if valor_premio > 0:
             premio_tag = "💰 **PREMIAÇÃO!**"
             if meta_bolao:
-                part = meta_bolao.get("total_participantes", 1)
+                part = meta_bolao.get("quantidade_cotas", meta_bolao.get("total_participantes", 1))
                 valor_por_cota = valor_premio / part
                 financeiro_str = f"\n  * 💵 **Prêmio Total:** {formatar_real(valor_premio)} | 💸 **Cada Cota Recebe:** {formatar_real(valor_por_cota)}"
             else:
@@ -216,8 +216,8 @@ def conferir_loterias():
             
             # Jogos de Bolão com Metadados Financeiros
             meta_b = {
-                "total_participantes": bolao.get(nome_bruto, {}).get("total_participantes", 1),
-                "valor_cota_paga": bolao.get(nome_bruto, {}).get("valor_cota_paga", 0.0)
+                "quantidade_cotas": bolao.get(nome_bruto, {}).get("quantidade_cotas", bolao.get(nome_bruto, {}).get("total_participantes", 1)),
+                "valor_cota": bolao.get(nome_bruto, {}).get("valor_cota", bolao.get(nome_bruto, {}).get("valor_cota_paga", 0.0))
             } if bolao.get(nome_bruto, {}).get("jogos") else None
             
             processar_lista_jogos(bolao.get(nome_bruto, {}).get("jogos"), loteria, dez_sort, tre_sort, time_sort, lista_rateio, "👥 Jogos de Bolão", meta_b)
