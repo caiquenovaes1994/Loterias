@@ -21,7 +21,7 @@ Uma solução automatizada e robusta para conferência de jogos das Loterias Cai
 - **Suporte Total a Modalidades Especiais:**
   - **+Milionária:** Conferência de dezenas + trevos com faixas de premiação específicas.
   - **Timemania:** Validação automática do "Time do Coração".
-- **Digest Inteligente:** Quando nenhuma janela de alerta está ativa, o bot envia um resumo dos próximos sorteios no radar (até 7 dias).
+- **Digest Inteligente:** Em dias sem sorteio, o bot silencia alertas isolados e envia **apenas uma única mensagem diária** com o resumo dos próximos jogos (até 7 dias). Se não houver nenhum jogo no período, ele permanece em silêncio.
 
 ---
 
@@ -47,7 +47,10 @@ Loterias/
 
 ### Janelas de notificação
 
-O bot monitora as datas definidas em `jogos_pessoais.json` e envia alertas progressivos:
+O bot monitora as datas definidas em `jogos_pessoais.json` e adapta o envio de mensagens:
+
+**Nos dias em que há sorteios (ou resultados pendentes):**
+O bot dispara os alertas programados em seus horários específicos:
 
 | ⏱️ Quando | 📬 Mensagem |
 | --- | --- |
@@ -56,7 +59,11 @@ O bot monitora as datas definidas em `jogos_pessoais.json` e envia alertas progr
 | 1 dia antes | "Sorteio Amanhã!" — lembrete com data e hora |
 | ≤ 2h antes | "Falta X minuto(s)!" — aviso final |
 | Pós-sorteio | Conferência completa com resultado e prêmios |
-| Sem janela ativa | Digest com os próximos sorteios no radar (até 7 dias) |
+
+**Nos dias sem sorteios (ou sem pendências):**
+
+- O bot não emite os alertas isolados para evitar repetições desnecessárias. Em vez disso, envia **apenas 1 mensagem no dia (às 15h BRT)**, contendo um resumo (Digest) de todos os próximos sorteios mapeados em até 7 dias.
+- Caso não haja nenhum sorteio programado para os próximos 7 dias, o bot fica silencioso e não envia nenhuma notificação.
 
 ### Configuração do `jogos_pessoais.json`
 
