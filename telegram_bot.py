@@ -265,6 +265,25 @@ def executar_modo_ci():
     mensagens_enviadas = 0
     sem_janela: list[tuple] = []  # sorteios próximos sem alerta específico
 
+    # Verifica se há algum sorteio HOJE ou resultado pendente do passado
+    tem_sorteio_hoje = False
+    for config in jogos_data.values():
+        dt_str = config.get("data_sorteio")
+        if dt_str:
+            dt_sorteio = parse_data_sorteio(dt_str)
+            if dt_sorteio:
+                if dt_sorteio.date() == hoje:
+                    tem_sorteio_hoje = True
+                    break
+                elif (dt_sorteio - agora).total_seconds() < 0:
+                    tem_sorteio_hoje = True
+                    break
+
+    # Se não há sorteio hoje, restringe o resumo diário (digest) apenas para a execução das 15h BRT
+    if not tem_sorteio_hoje and agora.hour != 15:
+        log.info("Sem sorteios hoje ou pendentes. Executando silenciosamente (digest apenas às 15h BRT).")
+        return
+
     for nome_bruto, config in jogos_data.items():
         loteria  = DE_PARA.get(nome_bruto, nome_bruto)
         concurso = config.get("concurso")
@@ -289,6 +308,12 @@ def executar_modo_ci():
         data_fmt = dt_sorteio.strftime("%d/%m/%Y")
         hora_fmt = dt_sorteio.strftime("%H:%M")
         msg      = None
+
+        # Se não há sorteio hoje, agrupamos todos os próximos (até 7 dias) no digest
+        if not tem_sorteio_hoje:
+            if 0 < dias_ate <= 7:
+                sem_janela.append((dt_sorteio, loteria, concurso, emoji))
+            continue
 
         # ── Pós-sorteio: busca resultado ──────────────────────────────
         if delta_s < 0:

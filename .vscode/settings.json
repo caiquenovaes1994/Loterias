@@ -1,8 +1,0 @@
-{
-    "python.analysis.exclude": [
-        "**/__pyrefly_virtual__/**"
-    ],
-    "python.analysis.ignore": [
-        "**/__pyrefly_virtual__/**"
-    ]
-}
