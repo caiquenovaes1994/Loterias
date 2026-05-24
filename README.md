@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-Uma solução automatizada e robusta para conferência de jogos das Loterias Caixa, com **avisos em tempo real via Bot do Telegram**, automação via GitHub Actions, relatórios visuais e análise financeira detalhada de prêmios.
+Uma solução automatizada e robusta para conferência de jogos das Loterias Caixa, com **avisos em tempo real via Bot do Telegram e WhatsApp**, automação via GitHub Actions, relatórios visuais e análise financeira detalhada de prêmios.
 
 ---
 
