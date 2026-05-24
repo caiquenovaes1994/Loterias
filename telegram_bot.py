@@ -31,6 +31,7 @@ import time
 import logging
 import threading
 import requests
+import urllib.parse
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -42,8 +43,10 @@ from zoneinfo import ZoneInfo
 # Localmente: exporte as variáveis antes de rodar o script:
 #   $env:TELEGRAM_TOKEN   = "<seu_token>"
 #   $env:TELEGRAM_CHAT_ID = "<seu_chat_id>"
-_token   = os.environ.get("TELEGRAM_TOKEN", "")
-_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+_token     = os.environ.get("TELEGRAM_TOKEN", "")
+_chat_id   = os.environ.get("TELEGRAM_CHAT_ID", "")
+_wpp_phone = os.environ.get("WHATSAPP_PHONE", "")
+_wpp_key   = os.environ.get("WHATSAPP_API_KEY", "")
 
 if not _token or not _chat_id:
     print(
@@ -59,6 +62,8 @@ if not _token or not _chat_id:
 
 BOT_TOKEN = _token
 CHAT_ID   = _chat_id
+WHATSAPP_PHONE = _wpp_phone
+WHATSAPP_API_KEY = _wpp_key
 FUSO      = ZoneInfo("America/Sao_Paulo")
 JSON_PESSOAIS = os.path.join(os.path.dirname(__file__), "jogos_pessoais.json")
 JSON_BOLAO = os.path.join(os.path.dirname(__file__), "jogos_bolao.json")
@@ -96,6 +101,32 @@ def enviar_mensagem(texto: str, parse_mode: str = "HTML") -> bool:
             return False
     except Exception as e:
         log.error("❌ Falha ao enviar mensagem: %s", e)
+        return False
+
+
+def enviar_whatsapp(texto: str) -> bool:
+    """Envia mensagem para o WhatsApp via CallMeBot."""
+    if not WHATSAPP_PHONE or not WHATSAPP_API_KEY:
+        return False
+    
+    # Converte HTML básico do Telegram para markdown do WhatsApp
+    texto = texto.replace("<b>", "*").replace("</b>", "*")
+    texto = texto.replace("<i>", "_").replace("</i>", "_")
+    texto = texto.replace("<code>", "").replace("</code>", "")
+    texto = texto.replace("\n\n\n", "\n\n")
+    
+    try:
+        texto_encoded = urllib.parse.quote(texto)
+        url = f"https://api.callmebot.com/whatsapp.php?phone={WHATSAPP_PHONE}&text={texto_encoded}&apikey={WHATSAPP_API_KEY}"
+        resp = requests.get(url, timeout=10)
+        if resp.status_code == 200:
+            log.info("✅ Mensagem enviada ao WhatsApp.")
+            return True
+        else:
+            log.error("❌ WhatsApp API error: %s", resp.text)
+            return False
+    except Exception as e:
+        log.error("❌ Falha ao enviar WhatsApp: %s", e)
         return False
 
 
@@ -201,7 +232,7 @@ def conferir_jogo(loteria: str, jogo_info, dez_sort: list, tre_sort: list,
     return linha
 
 
-def montar_mensagem_resultado(loteria: str, dados: dict, config: dict) -> str:
+def montar_mensagem_resultado(loteria: str, dados: dict, config: dict) -> tuple[str, str]:
     emoji    = EMOJIS.get(loteria, "🎰")
     num      = dados.get("numero", "?")
     data     = dados.get("dataApuracao", "?")
@@ -228,14 +259,24 @@ def montar_mensagem_resultado(loteria: str, dados: dict, config: dict) -> str:
         linha = conferir_jogo(loteria, jogo, dez_sort, tre_sort, time_sort, rateio, cotas)
         linhas_bolao.append(f"<b>Jogo {i}:</b>\n{linha}")
 
-    corpo = ""
+    corpo_telegram = ""
+    corpo_whatsapp = ""
     if linhas_pessoais:
-        corpo += "👤 <b>Seus Jogos:</b>\n" + "\n".join(linhas_pessoais) + "\n"
+        corpo_telegram += "👤 <b>Seus Jogos:</b>\n" + "\n".join(linhas_pessoais) + "\n"
     if linhas_bolao:
-        corpo += "\n👥 <b>Jogos de Bolão:</b>\n" + "\n".join(linhas_bolao) + "\n"
+        bolao_str = "👥 <b>Jogos de Bolão:</b>\n" + "\n".join(linhas_bolao) + "\n"
+        if corpo_telegram:
+            corpo_telegram += "\n" + bolao_str
+        else:
+            corpo_telegram = bolao_str
+        corpo_whatsapp = bolao_str
 
     titulo = f"{emoji} <b>{loteria.upper()}</b> — Concurso {num} ({data})\n"
-    return f"{titulo}{resultado}\n{corpo.strip()}"
+    
+    msg_telegram = f"{titulo}{resultado}\n{corpo_telegram.strip()}"
+    msg_whatsapp = f"{titulo}{resultado}\n{corpo_whatsapp.strip()}" if corpo_whatsapp else ""
+    
+    return msg_telegram, msg_whatsapp
 
 
 # ─────────────────────────────────────────────
@@ -356,7 +397,8 @@ def executar_modo_ci():
         dias_ate = (dt_sorteio.date() - hoje).days   # dias completos até o sorteio
         data_fmt = dt_sorteio.strftime("%d/%m/%Y")
         hora_fmt = dt_sorteio.strftime("%H:%M")
-        msg      = None
+        msg_tg   = None
+        msg_wpp  = None
 
         # Se não há sorteio hoje, agrupamos todos os próximos (até 7 dias) no digest
         if not tem_sorteio_hoje:
@@ -375,23 +417,26 @@ def executar_modo_ci():
                 log.warning("Tentativa %d falhou. Aguardando 60s...", tentativa)
                 time.sleep(60)
             if dados and dados.get("listaDezenas"):
-                msg = montar_mensagem_resultado(loteria, dados, config)
+                msg_tg, msg_wpp = montar_mensagem_resultado(loteria, dados, config)
             else:
-                msg = (
+                msg_tg = (
                     f"⚠️ Não consegui buscar o resultado do <b>{loteria.upper()}</b> "
                     f"concurso <b>{concurso}</b>.\n"
                     f"Verifique em loterias.caixa.gov.br"
                 )
+                if config.get("jogos_bolao"):
+                    msg_wpp = msg_tg
 
         # ── Hoje, falta ≤ 2h: aviso final ────────────────────────────
         elif dias_ate == 0 and 0 < delta_h <= 2:
             delta_min = int(delta_s / 60)
-            msg = (
+            msg_tg = (
                 f"{emoji} <b>⏰ Falta {delta_min} minuto{'s' if delta_min != 1 else ''}!</b>\n\n"
                 f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
                 f"🕐 Sorteio às <b>{hora_fmt}</b>\n\n"
                 f"Seus jogos estão prontos. Boa sorte! 🎯"
             )
+            if config.get("jogos_bolao"): msg_wpp = msg_tg
 
         # ── Hoje, falta > 2h: sem alerta (vai pro digest) ────────────
         elif dias_ate == 0:
@@ -400,30 +445,33 @@ def executar_modo_ci():
 
         # ── Amanhã (dia completo = janela de 24h naturais) ────────────
         elif dias_ate == 1:
-            msg = (
+            msg_tg = (
                 f"{emoji} <b>🔔 Sorteio Amanhã!</b>\n\n"
                 f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
                 f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
                 f"Seus jogos já estão registrados. Boa sorte! 🍀"
             )
+            if config.get("jogos_bolao"): msg_wpp = msg_tg
 
         # ── 3 dias antes (dia completo) ────────────────────────────────
         elif dias_ate == 3:
-            msg = (
+            msg_tg = (
                 f"{emoji} <b>📅 Faltam 3 dias!</b>\n\n"
                 f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
                 f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
                 f"Prepare-se! Seus jogos estão registrados. 🍀"
             )
+            if config.get("jogos_bolao"): msg_wpp = msg_tg
 
         # ── 7 dias antes (dia completo) ────────────────────────────────
         elif dias_ate == 7:
-            msg = (
+            msg_tg = (
                 f"{emoji} <b>🗓️ Faltam 7 dias!</b>\n\n"
                 f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
                 f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
                 f"Anote na agenda! Seus jogos estão registrados. 🍀"
             )
+            if config.get("jogos_bolao"): msg_wpp = msg_tg
 
         # ── Dentro dos 7 dias mas sem janela → digest ──────────────────
         elif 0 < dias_ate <= 7:
@@ -433,7 +481,13 @@ def executar_modo_ci():
         else:
             log.info("Sorteio de %s em %d dias — fora do radar (>7 dias).", loteria, dias_ate)
 
-        if msg and enviar_mensagem(msg):
+        enviou_algo = False
+        if msg_tg and enviar_mensagem(msg_tg):
+            enviou_algo = True
+        if msg_wpp and enviar_whatsapp(msg_wpp):
+            enviou_algo = True
+            
+        if enviou_algo:
             mensagens_enviadas += 1
 
     # ── Digest: sorteios próximos sem alerta específico ───────────────
@@ -475,7 +529,7 @@ def chave_alerta(loteria: str, concurso: int, tipo: str) -> str:
 
 
 def agendar_alerta(loteria: str, concurso: int, dt_sorteio: datetime,
-                   delta: timedelta, tipo: str, mensagem_fn):
+                   delta: timedelta, tipo: str, config: dict, mensagem_fn):
     agora  = datetime.now(tz=FUSO)
     disparo = dt_sorteio - delta
     espera  = (disparo - agora).total_seconds()
@@ -492,7 +546,10 @@ def agendar_alerta(loteria: str, concurso: int, dt_sorteio: datetime,
     def disparar():
         time.sleep(espera)
         alertas_enviados.add(chave)
-        enviar_mensagem(mensagem_fn())
+        msg = mensagem_fn()
+        enviar_mensagem(msg)
+        if config.get("jogos_bolao"):
+            enviar_whatsapp(msg)
         log.info("🔔 Alerta [%s] disparado para %s.", tipo, loteria)
 
     threading.Thread(target=disparar, daemon=True).start()
@@ -514,13 +571,20 @@ def agendar_conferencia_daemon(loteria: str, concurso: int, config: dict, dt_sor
             dados = buscar_resultado(loteria, concurso)
             if dados and dados.get("listaDezenas"):
                 alertas_enviados.add(chave)
-                enviar_mensagem(montar_mensagem_resultado(loteria, dados, config))
+                msg_tg, msg_wpp = montar_mensagem_resultado(loteria, dados, config)
+                enviar_mensagem(msg_tg)
+                if msg_wpp:
+                    enviar_whatsapp(msg_wpp)
                 return
             time.sleep(300)
-        enviar_mensagem(
+        
+        msg_erro = (
             f"⚠️ Não consegui buscar o resultado do <b>{loteria.upper()}</b> "
             f"concurso <b>{concurso}</b>.\nVerifique em loterias.caixa.gov.br"
         )
+        enviar_mensagem(msg_erro)
+        if config.get("jogos_bolao"):
+            enviar_whatsapp(msg_erro)
 
     threading.Thread(target=conferir, daemon=True).start()
 
@@ -552,7 +616,7 @@ def executar_modo_daemon():
 
             agendar_alerta(
                 loteria, concurso, dt_sorteio,
-                delta=timedelta(hours=24), tipo="24h",
+                delta=timedelta(hours=24), tipo="24h", config=config,
                 mensagem_fn=lambda l=loteria, c=concurso, d=dt_sorteio, e=emoji: (
                     f"{e} <b>Lembrete 24h!</b>\n\nAmanhã tem <b>{l.upper()}</b>!\n"
                     f"📅 Concurso <b>{c}</b>\n🕐 Sorteio às <b>{d.strftime('%H:%M')}</b> "
@@ -561,7 +625,7 @@ def executar_modo_daemon():
             )
             agendar_alerta(
                 loteria, concurso, dt_sorteio,
-                delta=timedelta(hours=1), tipo="1h",
+                delta=timedelta(hours=1), tipo="1h", config=config,
                 mensagem_fn=lambda l=loteria, c=concurso, d=dt_sorteio, e=emoji: (
                     f"{e} <b>Falta 1 hora!</b>\n\nO sorteio da <b>{l.upper()}</b> "
                     f"começa às <b>{d.strftime('%H:%M')}</b>!\n"
@@ -570,7 +634,7 @@ def executar_modo_daemon():
             )
             agendar_alerta(
                 loteria, concurso, dt_sorteio,
-                delta=timedelta(seconds=0), tipo="inicio",
+                delta=timedelta(seconds=0), tipo="inicio", config=config,
                 mensagem_fn=lambda l=loteria, c=concurso, e=emoji: (
                     f"{e} <b>O sorteio começou!</b>\n\n<b>{l.upper()}</b> — "
                     f"Concurso <b>{c}</b>\nAguardando resultado... 🥁\n\n"
