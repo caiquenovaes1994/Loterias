@@ -3,6 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-v4%20%2F%20v5-2671E5?style=flat&logo=githubactions&logoColor=white)](https://github.com/features/actions)
 [![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-26A5E4?style=flat&logo=telegram&logoColor=white)](https://core.telegram.org/bots)
+[![WhatsApp Bot](https://img.shields.io/badge/WhatsApp-Bot-25D366?style=flat&logo=whatsapp&logoColor=white)](https://www.callmebot.com/blog/free-api-whatsapp-messages/)
 [![JSON](https://img.shields.io/badge/JSON-5E5E5E?style=flat&logo=json&logoColor=white)](https://www.json.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
@@ -13,7 +14,7 @@ Uma solução automatizada e robusta para conferência de jogos das Loterias Cai
 
 ## 🌟 Diferenciais do Projeto
 
-- **🤖 Bot do Telegram em Tempo Real:** Receba notificações automáticas 7 dias, 3 dias, 24h e 1h antes do sorteio. O bot confere seus jogos automaticamente assim que o resultado é publicado.
+- **🤖 Bots em Tempo Real:** Receba notificações automáticas no **Telegram** e **WhatsApp** (exclusivo para grupos de bolão) 7 dias, 3 dias, 24h e 1h antes do sorteio. Os bots conferem seus jogos automaticamente assim que o resultado é publicado.
 - **Automação Inteligente:** Execução programada (Cron) com 5 horários diários sincronizados aos sorteios oficiais da Caixa.
 - **Cálculo Financeiro Real:** Integração com a `listaRateioPremio` da API oficial, exibindo o valor real do prêmio pago pela Caixa para cada faixa de acerto.
 - **Gestão de Bolões:** Divisão automática de prêmios entre participantes, calculando o valor exato por cota.
@@ -43,7 +44,7 @@ Loterias/
 
 ---
 
-## 🤖 Bot do Telegram
+## 🤖 Bots de Notificação (Telegram e WhatsApp)
 
 ### Janelas de notificação
 
@@ -65,7 +66,16 @@ O bot dispara os alertas programados em seus horários específicos:
 - O bot não emite os alertas isolados para evitar repetições desnecessárias. Em vez disso, envia **apenas 1 mensagem no dia (às 15h BRT)**, contendo um resumo (Digest) de todos os próximos sorteios mapeados em até 7 dias.
 - Caso não haja nenhum sorteio programado para os próximos 7 dias, o bot fica silencioso e não envia nenhuma notificação.
 
-### Configuração do `jogos_pessoais.json`
+### 🟢 Integração com WhatsApp (CallMeBot)
+
+O sistema suporta envios simultâneos para o Telegram e WhatsApp. Caso as variáveis de ambiente do WhatsApp sejam configuradas, o bot enviará a conferência do sorteio para o seu número privado no WhatsApp **em duas mensagens separadas**:
+
+1. **Seus Jogos:** A conferência das suas apostas individuais (`jogos_pessoais.json`).
+2. **Jogos de Bolão:** A conferência das apostas em grupo (`jogos_bolao.json`).
+
+> **💡 Dica para Grupos:** Como o WhatsApp possui limitações rígidas para bots automáticos em grupos, o script já formata e divide as mensagens perfeitamente. Assim, você as recebe no seu privado e precisa apenas **encaminhar a mensagem do Bolão com 1 toque** para o seu grupo de apostas!
+
+### Configuração do `jogos_pessoais.json` e `jogos_bolao.json`
 
 Adicione o campo `"data_sorteio"` em ISO 8601 (fuso de Brasília) para cada concurso:
 
@@ -122,6 +132,8 @@ Antes do workflow funcionar, cadastre as credenciais do Telegram em:
 | --- | --- |
 | `TELEGRAM_TOKEN` | Token do bot (obtido no [@BotFather](https://t.me/BotFather)) |
 | `TELEGRAM_CHAT_ID` | ID do seu chat (use [@userinfobot](https://t.me/userinfobot)) |
+| `WHATSAPP_PHONE` | (Opcional) Seu telefone com DDI para envio de Bolão |
+| `WHATSAPP_API_KEY` | (Opcional) Chave API do [CallMeBot](https://www.callmebot.com/) |
 
 > ⚠️ **Nunca** comite o token diretamente no código. Sempre use Secrets.
 
