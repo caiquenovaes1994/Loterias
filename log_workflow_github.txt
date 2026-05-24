@@ -1,0 +1,234 @@
+1. Set up job:
+
+Current runner version: '2.334.0'
+Runner Image Provisioner
+  Hosted Compute Agent
+  Version: 20260213.493
+  Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+  Build Date: 2026-02-13T00:28:41Z
+  Worker ID: {a1273243-f6e0-4eae-b79a-1d469c954202}
+  Azure Region: westus
+Operating System
+  Ubuntu
+  24.04.4
+  LTS
+Runner Image
+  Image: ubuntu-24.04
+  Version: 20260518.149.1
+  Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260518.149/images/ubuntu/Ubuntu2404-Readme.md
+  Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260518.149
+GITHUB_TOKEN Permissions
+  Contents: read
+  Metadata: read
+Secret source: Actions
+Prepare workflow directory
+Prepare all required actions
+Getting action download info
+Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+Complete job name: Verificar Sorteios e Notificar
+
+2. Clonar repositório:
+
+Run actions/checkout@v4
+  with:
+    repository: caiquenovaes1994/Loterias
+    token: ***
+    ssh-strict: true
+    ssh-user: git
+    persist-credentials: true
+    clean: true
+    sparse-checkout-cone-mode: true
+    fetch-depth: 1
+    fetch-tags: false
+    show-progress: true
+    lfs: false
+    submodules: false
+    set-safe-directory: true
+  env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+Syncing repository: caiquenovaes1994/Loterias
+Getting Git version info
+  Working directory is '/home/runner/work/Loterias/Loterias'
+  /usr/bin/git version
+  git version 2.54.0
+Temporarily overriding HOME='/home/runner/work/_temp/89b031c5-3f3a-488a-977f-bd32beeccd3e' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+/usr/bin/git config --global --add safe.directory /home/runner/work/Loterias/Loterias
+Deleting the contents of '/home/runner/work/Loterias/Loterias'
+Initializing the repository
+  /usr/bin/git init /home/runner/work/Loterias/Loterias
+  hint: Using 'master' as the name for the initial branch. This default branch name
+  hint: will change to "main" in Git 3.0. To configure the initial branch name
+  hint: to use in all of your new repositories, which will suppress this warning,
+  hint: call:
+  hint:
+  hint: 	git config --global init.defaultBranch <name>
+  hint:
+  hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+  hint: 'development'. The just-created branch can be renamed via this command:
+  hint:
+  hint: 	git branch -m <name>
+  hint:
+  hint: Disable this message with "git config set advice.defaultBranchName false"
+  Initialized empty Git repository in /home/runner/work/Loterias/Loterias/.git/
+  /usr/bin/git remote add origin https://github.com/caiquenovaes1994/Loterias
+Disabling automatic garbage collection
+  /usr/bin/git config --local gc.auto 0
+Setting up auth
+  /usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+  /usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+  /usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+  /usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+  /usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+  /usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+  /usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+Fetching the repository
+  /usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +5a15b896e49dbe82ceb0c48b007f7ead990b6f99:refs/remotes/origin/main
+  From https://github.com/caiquenovaes1994/Loterias
+   * [new ref]         5a15b896e49dbe82ceb0c48b007f7ead990b6f99 -> origin/main
+Determining the checkout info
+/usr/bin/git sparse-checkout disable
+/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Checking out the ref
+  /usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+  Switched to a new branch 'main'
+  branch 'main' set up to track 'origin/main'.
+/usr/bin/git log -1 --format=%H
+5a15b896e49dbe82ceb0c48b007f7ead990b6f99
+
+3. Configurar Python 3.12:
+
+Run actions/setup-python@v5
+  with:
+    python-version: 3.12
+    cache: pip
+    check-latest: false
+    token: ***
+    update-environment: true
+    allow-prereleases: false
+    freethreaded: false
+  env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  
+(node:2041) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+Installed versions
+  Successfully set up CPython (3.12.13)
+(Use `node --trace-deprecation ...` to show where the warning was created)
+/opt/hostedtoolcache/Python/3.12.13/x64/bin/pip cache dir
+/home/runner/.cache/pip
+Cache hit for: setup-python-Linux-x64-24.04-Ubuntu-python-3.12.13-pip-1c6d7978526baf0b62812a90634d6f4d82157c542661c243f190322ffab58e24
+(node:2041) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+Received 966934 of 966934 (100.0%), 1.3 MBs/sec
+Cache Size: ~1 MB (966934 B)
+/usr/bin/tar -xf /home/runner/work/_temp/f1b0ddcc-eb68-4ac6-b688-f42145968d0f/cache.tzst -P -C /home/runner/work/Loterias/Loterias --use-compress-program unzstd
+Cache restored successfully
+Cache restored from key: setup-python-Linux-x64-24.04-Ubuntu-python-3.12.13-pip-1c6d7978526baf0b62812a90634d6f4d82157c542661c243f190322ffab58e24
+
+4. Instalar dependências:
+
+Run python -m pip install --upgrade pip
+  python -m pip install --upgrade pip
+  pip install -r requirements.txt
+  shell: /usr/bin/bash -e {0}
+  env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    pythonLocation: /opt/hostedtoolcache/Python/3.12.13/x64
+    PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib/pkgconfig
+    Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+    Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+    Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+    LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib
+  
+Requirement already satisfied: pip in /opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/site-packages (26.1.1)
+Collecting requests>=2.28.0 (from -r requirements.txt (line 1))
+  Using cached requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)
+Collecting charset_normalizer<4,>=2 (from requests>=2.28.0->-r requirements.txt (line 1))
+  Using cached charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
+Collecting idna<4,>=2.5 (from requests>=2.28.0->-r requirements.txt (line 1))
+  Downloading idna-3.16-py3-none-any.whl.metadata (6.4 kB)
+Collecting urllib3<3,>=1.26 (from requests>=2.28.0->-r requirements.txt (line 1))
+  Using cached urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)
+Collecting certifi>=2023.5.7 (from requests>=2.28.0->-r requirements.txt (line 1))
+  Using cached certifi-2026.5.20-py3-none-any.whl.metadata (2.5 kB)
+Using cached requests-2.34.2-py3-none-any.whl (73 kB)
+Using cached charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (216 kB)
+Downloading idna-3.16-py3-none-any.whl (74 kB)
+Using cached urllib3-2.7.0-py3-none-any.whl (131 kB)
+Using cached certifi-2026.5.20-py3-none-any.whl (134 kB)
+Installing collected packages: urllib3, idna, charset_normalizer, certifi, requests
+Successfully installed certifi-2026.5.20 charset_normalizer-3.4.7 idna-3.16 requests-2.34.2 urllib3-2.7.0
+
+5. Executar Bot (Modo CI)
+
+Run python telegram_bot.py --ci
+  python telegram_bot.py --ci
+  shell: /usr/bin/bash -e {0}
+  env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    pythonLocation: /opt/hostedtoolcache/Python/3.12.13/x64
+    PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib/pkgconfig
+    Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+    Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+    Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+    LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib
+    TELEGRAM_TOKEN: ***
+    TELEGRAM_CHAT_ID: ***
+    WHATSAPP_PHONE: ***
+    WHATSAPP_API_KEY: ***
+  
+2026-05-24 15:39:59 [INFO] 🤖 Modo CI ativado.
+2026-05-24 15:39:59 [INFO] Buscando resultado de megasena/3010...
+2026-05-24 15:40:01 [INFO] ✅ Mensagem enviada ao Telegram.
+2026-05-24 15:40:02 [INFO] ✅ Mensagem enviada ao WhatsApp.
+2026-05-24 15:40:04 [INFO] ✅ Mensagem enviada ao WhatsApp.
+2026-05-24 15:40:06 [INFO] ✅ 1 mensagem(ns) enviada(s).
+
+6. Registrar sumário:
+
+Run echo "## 🎰 Bot de Loterias — Execução $(date -u +'%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+  echo "## 🎰 Bot de Loterias — Execução $(date -u +'%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+  echo "" >> $GITHUB_STEP_SUMMARY
+  if [ "workflow_dispatch" = "workflow_dispatch" ]; then
+    echo "**Motivo:** Teste manual" >> $GITHUB_STEP_SUMMARY
+  else
+    echo "**Trigger:** Agendamento automático (cron)" >> $GITHUB_STEP_SUMMARY
+  fi
+  shell: /usr/bin/bash -e {0}
+  env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    pythonLocation: /opt/hostedtoolcache/Python/3.12.13/x64
+    PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib/pkgconfig
+    Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+    Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+    Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+    LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib
+
+7. Post Configurar Python 3.12:
+
+Post job cleanup.
+Cache hit occurred on the primary key setup-python-Linux-x64-24.04-Ubuntu-python-3.12.13-pip-1c6d7978526baf0b62812a90634d6f4d82157c542661c243f190322ffab58e24, not saving cache.
+(node:2128) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+8. Post clonar repositório:
+
+Post job cleanup.
+/usr/bin/git version
+git version 2.54.0
+Temporarily overriding HOME='/home/runner/work/_temp/b9e09b44-5f2b-4254-8936-7a66238444e3' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+/usr/bin/git config --global --add safe.directory /home/runner/work/Loterias/Loterias
+/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+http.https://github.com/.extraheader
+/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+
+9. Complete job:
+
+Cleaning up orphan processes
+Warning: Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

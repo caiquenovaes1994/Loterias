@@ -495,7 +495,7 @@ def executar_modo_ci():
             if enviar_whatsapp(wpp_msg):
                 enviou_algo = True
                 # CallMeBot rate limit protection: avoid sending messages too fast
-                time.sleep(2)
+                time.sleep(8)
             
         if enviou_algo:
             mensagens_enviadas += 1
@@ -584,7 +584,7 @@ def agendar_conferencia_daemon(loteria: str, concurso: int, config: dict, dt_sor
                 enviar_mensagem(msg_tg)
                 if wpp_p:
                     enviar_whatsapp(wpp_p)
-                    time.sleep(2)
+                    time.sleep(8)
                 if wpp_b:
                     enviar_whatsapp(wpp_b)
                 return
