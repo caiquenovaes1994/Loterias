@@ -60,7 +60,8 @@ if not _token or not _chat_id:
 BOT_TOKEN = _token
 CHAT_ID   = _chat_id
 FUSO      = ZoneInfo("America/Sao_Paulo")
-JSON_FILE = os.path.join(os.path.dirname(__file__), "jogos_pessoais.json")
+JSON_PESSOAIS = os.path.join(os.path.dirname(__file__), "jogos_pessoais.json")
+JSON_BOLAO = os.path.join(os.path.dirname(__file__), "jogos_bolao.json")
 API_BASE  = "https://servicebus2.caixa.gov.br/portaldeloterias/api"
 TG_API    = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
@@ -146,7 +147,7 @@ def buscar_resultado(loteria: str, concurso: int) -> dict | None:
 
 
 def conferir_jogo(loteria: str, jogo_info, dez_sort: list, tre_sort: list,
-                  time_sort: str, lista_rateio: list) -> str:
+                  time_sort: str, lista_rateio: list, cotas: int = 1) -> str:
     if isinstance(jogo_info, dict):
         dezenas_user = [int(x) for x in jogo_info.get("dezenas", "").replace("-", " ").split()]
         trevos_user  = [int(x) for x in jogo_info.get("trevos", "").replace("-", " ").split()] if "trevos" in jogo_info else []
@@ -192,12 +193,15 @@ def conferir_jogo(loteria: str, jogo_info, dez_sort: list, tre_sort: list,
         linha = f"  <code>{dez_fmt}</code> | ✔️ {acertos_dez}"
 
     if premio > 0:
-        linha += f"\n  💰 <b>PREMIADO!</b> {formatar_real(premio)}"
+        if cotas > 1:
+            linha += f"\n  💰 <b>PREMIADO!</b> {formatar_real(premio)} (Cota: {formatar_real(premio/cotas)})"
+        else:
+            linha += f"\n  💰 <b>PREMIADO!</b> {formatar_real(premio)}"
 
     return linha
 
 
-def montar_mensagem_resultado(loteria: str, dados: dict, jogos: list) -> str:
+def montar_mensagem_resultado(loteria: str, dados: dict, config: dict) -> str:
     emoji    = EMOJIS.get(loteria, "🎰")
     num      = dados.get("numero", "?")
     data     = dados.get("dataApuracao", "?")
@@ -213,22 +217,68 @@ def montar_mensagem_resultado(loteria: str, dados: dict, jogos: list) -> str:
     else:
         resultado = f"🔢 Resultado: <code>{sorted(dez_sort)}</code>\n"
 
-    linhas_jogos = []
-    for i, jogo in enumerate(jogos, 1):
+    linhas_pessoais = []
+    for i, jogo in enumerate(config.get("jogos_pessoais", []), 1):
         linha = conferir_jogo(loteria, jogo, dez_sort, tre_sort, time_sort, rateio)
-        linhas_jogos.append(f"<b>Jogo {i}:</b>\n{linha}")
+        linhas_pessoais.append(f"<b>Jogo {i}:</b>\n{linha}")
 
-    corpo  = "\n".join(linhas_jogos)
+    linhas_bolao = []
+    cotas = config.get("meta_bolao", {}).get("quantidade_cotas", 1)
+    for i, jogo in enumerate(config.get("jogos_bolao", []), 1):
+        linha = conferir_jogo(loteria, jogo, dez_sort, tre_sort, time_sort, rateio, cotas)
+        linhas_bolao.append(f"<b>Jogo {i}:</b>\n{linha}")
+
+    corpo = ""
+    if linhas_pessoais:
+        corpo += "👤 <b>Seus Jogos:</b>\n" + "\n".join(linhas_pessoais) + "\n"
+    if linhas_bolao:
+        corpo += "\n👥 <b>Jogos de Bolão:</b>\n" + "\n".join(linhas_bolao) + "\n"
+
     titulo = f"{emoji} <b>{loteria.upper()}</b> — Concurso {num} ({data})\n"
-    return f"{titulo}{resultado}\n👤 <b>Seus Jogos:</b>\n{corpo}"
+    return f"{titulo}{resultado}\n{corpo.strip()}"
 
 
 # ─────────────────────────────────────────────
 # Parsing de JSON e datas
 # ─────────────────────────────────────────────
 def carregar_jogos() -> dict:
-    with open(JSON_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    jogos = {}
+    
+    def carregar_arquivo(caminho, is_bolao=False):
+        if not os.path.exists(caminho):
+            return
+        with open(caminho, "r", encoding="utf-8") as f:
+            try:
+                dados = json.load(f)
+            except Exception:
+                return
+            for loteria, config in dados.items():
+                if loteria not in jogos:
+                    jogos[loteria] = {
+                        "concurso": config.get("concurso"),
+                        "data_sorteio": config.get("data_sorteio"),
+                        "jogos_pessoais": [],
+                        "jogos_bolao": [],
+                        "meta_bolao": {}
+                    }
+                else:
+                    if config.get("concurso"):
+                        jogos[loteria]["concurso"] = config.get("concurso")
+                    if config.get("data_sorteio"):
+                        jogos[loteria]["data_sorteio"] = config.get("data_sorteio")
+                
+                if is_bolao:
+                    jogos[loteria]["jogos_bolao"] = config.get("jogos", [])
+                    jogos[loteria]["meta_bolao"] = {
+                        "quantidade_cotas": config.get("quantidade_cotas", config.get("total_participantes", 1)),
+                        "valor_cota": config.get("valor_cota", config.get("valor_cota_paga", 0.0))
+                    }
+                else:
+                    jogos[loteria]["jogos_pessoais"] = config.get("jogos", [])
+
+    carregar_arquivo(JSON_PESSOAIS, is_bolao=False)
+    carregar_arquivo(JSON_BOLAO, is_bolao=True)
+    return jogos
 
 
 def parse_data_sorteio(iso_str: str | None) -> datetime | None:
@@ -287,10 +337,9 @@ def executar_modo_ci():
     for nome_bruto, config in jogos_data.items():
         loteria  = DE_PARA.get(nome_bruto, nome_bruto)
         concurso = config.get("concurso")
-        jogos    = config.get("jogos", [])
         dt_str   = config.get("data_sorteio")
 
-        if not concurso or not jogos:
+        if not concurso or (not config.get("jogos_pessoais") and not config.get("jogos_bolao")):
             log.info("Sem jogos para %s — pulando.", loteria)
             continue
         if not dt_str:
@@ -326,7 +375,7 @@ def executar_modo_ci():
                 log.warning("Tentativa %d falhou. Aguardando 60s...", tentativa)
                 time.sleep(60)
             if dados and dados.get("listaDezenas"):
-                msg = montar_mensagem_resultado(loteria, dados, jogos)
+                msg = montar_mensagem_resultado(loteria, dados, config)
             else:
                 msg = (
                     f"⚠️ Não consegui buscar o resultado do <b>{loteria.upper()}</b> "
@@ -449,7 +498,7 @@ def agendar_alerta(loteria: str, concurso: int, dt_sorteio: datetime,
     threading.Thread(target=disparar, daemon=True).start()
 
 
-def agendar_conferencia_daemon(loteria: str, concurso: int, jogos: list, dt_sorteio: datetime):
+def agendar_conferencia_daemon(loteria: str, concurso: int, config: dict, dt_sorteio: datetime):
     chave = chave_alerta(loteria, concurso, "resultado")
     if chave in alertas_enviados:
         return
@@ -465,7 +514,7 @@ def agendar_conferencia_daemon(loteria: str, concurso: int, jogos: list, dt_sort
             dados = buscar_resultado(loteria, concurso)
             if dados and dados.get("listaDezenas"):
                 alertas_enviados.add(chave)
-                enviar_mensagem(montar_mensagem_resultado(loteria, dados, jogos))
+                enviar_mensagem(montar_mensagem_resultado(loteria, dados, config))
                 return
             time.sleep(300)
         enviar_mensagem(
@@ -490,10 +539,9 @@ def executar_modo_daemon():
         for nome_bruto, config in jogos_data.items():
             loteria  = DE_PARA.get(nome_bruto, nome_bruto)
             concurso = config.get("concurso")
-            jogos    = config.get("jogos", [])
             dt_str   = config.get("data_sorteio")
 
-            if not concurso or not jogos:
+            if not concurso or (not config.get("jogos_pessoais") and not config.get("jogos_bolao")):
                 continue
 
             dt_sorteio = parse_data_sorteio(dt_str)
@@ -529,7 +577,7 @@ def executar_modo_daemon():
                     f"Em instantes envio a conferência dos seus jogos!"
                 )
             )
-            agendar_conferencia_daemon(loteria, concurso, jogos, dt_sorteio)
+            agendar_conferencia_daemon(loteria, concurso, config, dt_sorteio)
 
         time.sleep(600)
 
