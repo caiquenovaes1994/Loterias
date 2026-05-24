@@ -68,12 +68,9 @@ O bot dispara os alertas programados em seus horários específicos:
 
 ### 🟢 Integração com WhatsApp (CallMeBot)
 
-O sistema suporta envios simultâneos para o Telegram e WhatsApp. Caso as variáveis de ambiente do WhatsApp sejam configuradas, o bot enviará a conferência do sorteio para o seu número privado no WhatsApp **em duas mensagens separadas**:
+O sistema suporta envios simultâneos para o Telegram e WhatsApp. Caso as variáveis de ambiente do WhatsApp sejam configuradas, o bot enviará a conferência do sorteio para o seu número privado no WhatsApp **exclusivamente com os resultados dos Jogos de Bolão** (`jogos_bolao.json`).
 
-1. **Seus Jogos:** A conferência das suas apostas individuais (`jogos_pessoais.json`).
-2. **Jogos de Bolão:** A conferência das apostas em grupo (`jogos_bolao.json`).
-
-> **💡 Dica para Grupos:** Como o WhatsApp possui limitações rígidas para bots automáticos em grupos, o script já formata e divide as mensagens perfeitamente. Assim, você as recebe no seu privado e precisa apenas **encaminhar a mensagem do Bolão com 1 toque** para o seu grupo de apostas!
+> **💡 Dica para Grupos:** Como o WhatsApp possui limitações rígidas para bots automáticos em grupos, a solução ideal é você receber essa mensagem com o resultado do bolão no seu privado e apenas **encaminhá-la com 1 toque** para o seu grupo de apostas!
 
 ### Configuração do `jogos_pessoais.json` e `jogos_bolao.json`
 

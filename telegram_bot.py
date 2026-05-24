@@ -232,7 +232,7 @@ def conferir_jogo(loteria: str, jogo_info, dez_sort: list, tre_sort: list,
     return linha
 
 
-def montar_mensagem_resultado(loteria: str, dados: dict, config: dict) -> tuple[str, str, str]:
+def montar_mensagem_resultado(loteria: str, dados: dict, config: dict) -> tuple[str, str]:
     emoji    = EMOJIS.get(loteria, "🎰")
     num      = dados.get("numero", "?")
     data     = dados.get("dataApuracao", "?")
@@ -260,13 +260,10 @@ def montar_mensagem_resultado(loteria: str, dados: dict, config: dict) -> tuple[
         linhas_bolao.append(f"<b>Jogo {i}:</b>\n{linha}")
 
     corpo_telegram = ""
-    corpo_whatsapp_pessoais = ""
-    corpo_whatsapp_bolao = ""
+    corpo_whatsapp = ""
     
     if linhas_pessoais:
-        pessoais_str = "👤 <b>Seus Jogos:</b>\n" + "\n".join(linhas_pessoais) + "\n"
-        corpo_telegram += pessoais_str
-        corpo_whatsapp_pessoais = pessoais_str
+        corpo_telegram += "👤 <b>Seus Jogos:</b>\n" + "\n".join(linhas_pessoais) + "\n"
 
     if linhas_bolao:
         bolao_str = "👥 <b>Jogos de Bolão:</b>\n" + "\n".join(linhas_bolao) + "\n"
@@ -274,15 +271,14 @@ def montar_mensagem_resultado(loteria: str, dados: dict, config: dict) -> tuple[
             corpo_telegram += "\n" + bolao_str
         else:
             corpo_telegram = bolao_str
-        corpo_whatsapp_bolao = bolao_str
+        corpo_whatsapp = bolao_str
 
     titulo = f"{emoji} <b>{loteria.upper()}</b> — Concurso {num} ({data})\n"
     
     msg_telegram = f"{titulo}{resultado}\n{corpo_telegram.strip()}"
-    msg_wpp_p = f"{titulo}{resultado}\n{corpo_whatsapp_pessoais.strip()}" if corpo_whatsapp_pessoais else ""
-    msg_wpp_b = f"{titulo}{resultado}\n{corpo_whatsapp_bolao.strip()}" if corpo_whatsapp_bolao else ""
+    msg_whatsapp = f"{titulo}{resultado}\n{corpo_whatsapp.strip()}" if corpo_whatsapp else ""
     
-    return msg_telegram, msg_wpp_p, msg_wpp_b
+    return msg_telegram, msg_whatsapp
 
 
 # ─────────────────────────────────────────────
@@ -404,7 +400,7 @@ def executar_modo_ci():
         data_fmt = dt_sorteio.strftime("%d/%m/%Y")
         hora_fmt = dt_sorteio.strftime("%H:%M")
         msg_tg   = None
-        msg_wpp_list = []
+        msg_wpp  = None
 
         # Se não há sorteio hoje, agrupamos todos os próximos (até 7 dias) no digest
         if not tem_sorteio_hoje:
@@ -423,16 +419,15 @@ def executar_modo_ci():
                 log.warning("Tentativa %d falhou. Aguardando 60s...", tentativa)
                 time.sleep(60)
             if dados and dados.get("listaDezenas"):
-                msg_tg, wpp_p, wpp_b = montar_mensagem_resultado(loteria, dados, config)
-                if wpp_p: msg_wpp_list.append(wpp_p)
-                if wpp_b: msg_wpp_list.append(wpp_b)
+                msg_tg, msg_wpp = montar_mensagem_resultado(loteria, dados, config)
             else:
                 msg_tg = (
                     f"⚠️ Não consegui buscar o resultado do <b>{loteria.upper()}</b> "
                     f"concurso <b>{concurso}</b>.\n"
                     f"Verifique em loterias.caixa.gov.br"
                 )
-                msg_wpp_list.append(msg_tg)
+                if config.get("jogos_bolao"):
+                    msg_wpp = msg_tg
 
         # ── Hoje, falta ≤ 2h: aviso final ────────────────────────────
         elif dias_ate == 0 and 0 < delta_h <= 2:
@@ -443,7 +438,7 @@ def executar_modo_ci():
                 f"🕐 Sorteio às <b>{hora_fmt}</b>\n\n"
                 f"Seus jogos estão prontos. Boa sorte! 🎯"
             )
-            msg_wpp_list.append(msg_tg)
+            if config.get("jogos_bolao"): msg_wpp = msg_tg
 
         # ── Hoje, falta > 2h: sem alerta (vai pro digest) ────────────
         elif dias_ate == 0:
@@ -458,7 +453,7 @@ def executar_modo_ci():
                 f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
                 f"Seus jogos já estão registrados. Boa sorte! 🍀"
             )
-            msg_wpp_list.append(msg_tg)
+            if config.get("jogos_bolao"): msg_wpp = msg_tg
 
         # ── 3 dias antes (dia completo) ────────────────────────────────
         elif dias_ate == 3:
@@ -468,7 +463,7 @@ def executar_modo_ci():
                 f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
                 f"Prepare-se! Seus jogos estão registrados. 🍀"
             )
-            msg_wpp_list.append(msg_tg)
+            if config.get("jogos_bolao"): msg_wpp = msg_tg
 
         # ── 7 dias antes (dia completo) ────────────────────────────────
         elif dias_ate == 7:
@@ -478,7 +473,7 @@ def executar_modo_ci():
                 f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
                 f"Anote na agenda! Seus jogos estão registrados. 🍀"
             )
-            msg_wpp_list.append(msg_tg)
+            if config.get("jogos_bolao"): msg_wpp = msg_tg
 
         # ── Dentro dos 7 dias mas sem janela → digest ──────────────────
         elif 0 < dias_ate <= 7:
@@ -491,11 +486,8 @@ def executar_modo_ci():
         enviou_algo = False
         if msg_tg and enviar_mensagem(msg_tg):
             enviou_algo = True
-        for wpp_msg in msg_wpp_list:
-            if enviar_whatsapp(wpp_msg):
-                enviou_algo = True
-                # CallMeBot rate limit protection: avoid sending messages too fast
-                time.sleep(8)
+        if msg_wpp and enviar_whatsapp(msg_wpp):
+            enviou_algo = True
             
         if enviou_algo:
             mensagens_enviadas += 1
@@ -558,7 +550,8 @@ def agendar_alerta(loteria: str, concurso: int, dt_sorteio: datetime,
         alertas_enviados.add(chave)
         msg = mensagem_fn()
         enviar_mensagem(msg)
-        enviar_whatsapp(msg)
+        if config.get("jogos_bolao"):
+            enviar_whatsapp(msg)
         log.info("🔔 Alerta [%s] disparado para %s.", tipo, loteria)
 
     threading.Thread(target=disparar, daemon=True).start()
@@ -580,13 +573,10 @@ def agendar_conferencia_daemon(loteria: str, concurso: int, config: dict, dt_sor
             dados = buscar_resultado(loteria, concurso)
             if dados and dados.get("listaDezenas"):
                 alertas_enviados.add(chave)
-                msg_tg, wpp_p, wpp_b = montar_mensagem_resultado(loteria, dados, config)
+                msg_tg, msg_wpp = montar_mensagem_resultado(loteria, dados, config)
                 enviar_mensagem(msg_tg)
-                if wpp_p:
-                    enviar_whatsapp(wpp_p)
-                    time.sleep(8)
-                if wpp_b:
-                    enviar_whatsapp(wpp_b)
+                if msg_wpp:
+                    enviar_whatsapp(msg_wpp)
                 return
             time.sleep(300)
         
@@ -595,7 +585,8 @@ def agendar_conferencia_daemon(loteria: str, concurso: int, config: dict, dt_sor
             f"concurso <b>{concurso}</b>.\nVerifique em loterias.caixa.gov.br"
         )
         enviar_mensagem(msg_erro)
-        enviar_whatsapp(msg_erro)
+        if config.get("jogos_bolao"):
+            enviar_whatsapp(msg_erro)
 
     threading.Thread(target=conferir, daemon=True).start()
 
