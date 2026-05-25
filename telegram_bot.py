@@ -368,9 +368,6 @@ def executar_modo_ci():
                 if dt_sorteio.date() == hoje:
                     tem_sorteio_hoje = True
                     break
-                elif (dt_sorteio - agora).total_seconds() < 0:
-                    tem_sorteio_hoje = True
-                    break
 
     # Se não há sorteio hoje, restringe o resumo diário (digest) apenas para a execução das 15h BRT
     if not tem_sorteio_hoje and agora.hour != 15:
@@ -408,8 +405,8 @@ def executar_modo_ci():
                 sem_janela.append((dt_sorteio, loteria, concurso, emoji))
             continue
 
-        # ── Pós-sorteio: busca resultado ──────────────────────────────
-        if delta_s < 0:
+        # ── Pós-sorteio: busca resultado (janela de até 3 horas) ──────
+        if 0 > delta_s >= -10800:
             log.info("Buscando resultado de %s/%d...", loteria, concurso)
             dados = None
             for tentativa in range(1, 4):
