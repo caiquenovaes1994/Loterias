@@ -59,7 +59,9 @@ O bot dispara os alertas programados em seus horários específicos:
 | 3 dias antes | "Faltam 3 dias!" — prepare-se |
 | 1 dia antes | "Sorteio Amanhã!" — lembrete com data e hora |
 | ≤ 2h antes | "Falta X minuto(s)!" — aviso final |
-| Pós-sorteio | Conferência completa com resultado e prêmios |
+| Pós-sorteio | Conferência completa com resultado e prêmios (disparado uma única vez) |
+
+> ℹ️ **Sobre o envio de Resultados (Pós-sorteio):** Para evitar mensagens repetitivas em dias subsequentes, a busca e envio do resultado do sorteio ocorre apenas na primeira janela do cron configurado (**até 3 horas** após o horário oficial do sorteio). Sorteios cujas datas já passaram dessa janela não causam disparos repetitivos e são ignorados até que você atualize os concursos para o futuro.
 
 **Nos dias sem sorteios (ou sem pendências):**
 
