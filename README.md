@@ -156,4 +156,4 @@ _Desenvolvido para automatizar a sorte e organizar a fé._ 🍀
 &nbsp;
 [![Telegram](https://img.shields.io/badge/Telegram-@caiquenovaes94-26A5E4?style=flat&logo=telegram&logoColor=white)](https://t.me/caiquenovaes94)
 &nbsp;
-[![WhatsApp](https://img.shields.io/badge/-25D366?style=flat&logo=whatsapp&logoColor=white)](https://wa.me/5511988682797)
+[![WhatsApp](https://img.shields.io/badge/WhatsApp-Contato-25D366?style=flat&logo=whatsapp&logoColor=white)](https://wa.me/5511988682797)
