@@ -155,3 +155,5 @@ _Desenvolvido para automatizar a sorte e organizar a fé._ 🍀
 [![Gmail](https://img.shields.io/badge/Gmail-caiquenovaes1994@gmail.com-EA4335?style=flat&logo=gmail&logoColor=white)](mailto:caiquenovaes1994@gmail.com)
 &nbsp;
 [![Telegram](https://img.shields.io/badge/Telegram-@caiquenovaes94-26A5E4?style=flat&logo=telegram&logoColor=white)](https://t.me/caiquenovaes94)
+&nbsp;
+[![WhatsApp](https://img.shields.io/badge/-25D366?style=flat&logo=whatsapp&logoColor=white)](https://wa.me/5511988682797)
