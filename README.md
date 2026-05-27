@@ -7,6 +7,7 @@
 [![JSON](https://img.shields.io/badge/JSON-5E5E5E?style=flat&logo=json&logoColor=white)](https://www.json.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-critical.svg)](SECURITY.md)
 
 Uma solução automatizada e robusta para conferência de jogos das Loterias Caixa, com **avisos em tempo real via Bot do Telegram e WhatsApp**, automação via GitHub Actions, relatórios visuais e análise financeira detalhada de prêmios.
 
@@ -30,8 +31,7 @@ Uma solução automatizada e robusta para conferência de jogos das Loterias Cai
 
 ```text
 Loterias/
-├── conferidor.py          # Núcleo lógico: consome API, processa e calcula prêmios
-├── telegram_bot.py        # Bot Telegram: alertas em tempo real + conferência automática
+├── telegram_bot.py        # Bot Telegram + conferidor: consome API, processa e calcula prêmios
 ├── jogos_pessoais.json    # Suas apostas individuais (com datas dos concursos)
 ├── jogos_bolao.json       # Apostas em grupo com metadados financeiros
 ├── requirements.txt       # Dependências Python
@@ -39,6 +39,7 @@ Loterias/
 ├── REGRAS_LOTERIAS.md     # Referência rápida das modalidades e dias de sorteio
 ├── LICENSE                # Licença MIT
 ├── CODE_OF_CONDUCT.md     # Código de conduta do projeto
+├── SECURITY.md            # Política de segurança e reporte de vulnerabilidades
 └── .github/workflows/     # Pipeline de automação GitHub Actions
 ```
 

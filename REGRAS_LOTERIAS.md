@@ -41,7 +41,7 @@ Conhecida por ser uma das mais fáceis de ganhar.
 
 ## 🌀 Lotomania
 
-- **Como jogar:** Escolha 50 números entre los 100 disponíveis.
+- **Como jogar:** Escolha 50 números entre os 100 disponíveis.
 - **Sorteios:** Segundas, Quartas e Sextas (20h BRT).
 - **Faixas de Premiação:** 20, 19, 18, 17, 16, 15 e **0 acertos**.
 
