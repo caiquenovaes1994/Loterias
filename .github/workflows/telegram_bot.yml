@@ -28,23 +28,24 @@
 name: 🎰 Bot de Loterias — Telegram
 
 on:
-  schedule:
-    # Todos os horários em UTC (BRT = UTC -3h)
-    #
-    # ── 09h BRT (12:00 UTC): aviso "falta 1h" para sorteios das 11h ──
-    - cron: '0 12 * * *'
-
-    # ── 12h30 BRT (15:30 UTC): resultado de sorteios das 11h ──────────
-    - cron: '30 15 * * *'
-
-    # ── 15h BRT (18:00 UTC): alertas 7d / 3d / amanhã ─────────────────
-    - cron: '0 18 * * *'
-
-    # ── 18h BRT (21:00 UTC): aviso "falta 1h" para sorteios das 20h ──
-    - cron: '0 21 * * *'
-
-    # ── 21h30 BRT (00:30 UTC): resultado de sorteios das 20h ──────────
-    - cron: '30 0 * * *'
+  # --- WORKFLOW PAUSADO ---
+  # schedule:
+  #   # Todos os horários em UTC (BRT = UTC -3h)
+  #   #
+  #   # ── 09h BRT (12:00 UTC): aviso "falta 1h" para sorteios das 11h ──
+  #   - cron: '0 12 * * *'
+  #
+  #   # ── 12h30 BRT (15:30 UTC): resultado de sorteios das 11h ──────────
+  #   - cron: '30 15 * * *'
+  #
+  #   # ── 15h BRT (18:00 UTC): alertas 7d / 3d / amanhã ─────────────────
+  #   - cron: '0 18 * * *'
+  #
+  #   # ── 18h BRT (21:00 UTC): aviso "falta 1h" para sorteios das 20h ──
+  #   - cron: '0 21 * * *'
+  #
+  #   # ── 21h30 BRT (00:30 UTC): resultado de sorteios das 20h ──────────
+  #   - cron: '30 0 * * *'
 
   # Disparo manual via interface do GitHub (útil para testar ou conferir sob demanda)
   workflow_dispatch:
