@@ -139,6 +139,8 @@ DE_PARA = {
     "quina": "quina",
     "timemania": "timemania",
     "maismilionaria": "maismilionaria",
+    "+milionaria": "maismilionaria",
+    "+milionária": "maismilionaria",
     "lotomania": "lotomania",
     "duplasena": "duplasena",
     "diadesorte": "diadesorte",
@@ -426,8 +428,8 @@ def executar_modo_ci():
                 if config.get("jogos_bolao"):
                     msg_wpp = msg_tg
 
-        # ── Hoje, falta ≤ 2h: aviso final ────────────────────────────
-        elif dias_ate == 0 and 0 < delta_h <= 2:
+        # ── Hoje, falta ≤ 3h: aviso final ────────────────────────────
+        elif dias_ate == 0 and 0 < delta_h <= 3:
             delta_min = int(delta_s / 60)
             msg_tg = (
                 f"{emoji} <b>⏰ Falta {delta_min} minuto{'s' if delta_min != 1 else ''}!</b>\n\n"
@@ -437,9 +439,9 @@ def executar_modo_ci():
             )
             if config.get("jogos_bolao"): msg_wpp = msg_tg
 
-        # ── Hoje, falta > 2h: sem alerta (vai pro digest) ────────────
+        # ── Hoje, falta > 3h: sem alerta (vai pro digest) ────────────
         elif dias_ate == 0:
-            log.info("Sorteio de %s hoje às %s — mais de 2h, sem alerta.", loteria, hora_fmt)
+            log.info("Sorteio de %s hoje às %s — mais de 3h, sem alerta.", loteria, hora_fmt)
             sem_janela.append((dt_sorteio, loteria, concurso, emoji))
 
         # ── Amanhã (dia completo = janela de 24h naturais) ────────────
