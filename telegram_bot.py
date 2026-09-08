@@ -234,6 +234,41 @@ def conferir_jogo(loteria: str, jogo_info, dez_sort: list, tre_sort: list,
     return linha
 
 
+def formatar_jogos_confirmacao(config: dict) -> str:
+    linhas = []
+    pessoais = config.get("jogos_pessoais", [])
+    if pessoais:
+        linhas.append("👤 <b>Seus Jogos Registrados:</b>")
+        for i, jogo in enumerate(pessoais, 1):
+            if isinstance(jogo, dict):
+                dezenas = sorted([int(x) for x in jogo.get("dezenas", "").replace("-", " ").split()])
+                trevos  = sorted([int(x) for x in jogo.get("trevos", "").replace("-", " ").split()]) if "trevos" in jogo else []
+                time_u  = jogo.get("time", "").strip()
+                if trevos:
+                    linhas.append(f"  <b>Jogo {i}:</b> <code>{dezenas}</code> + Trevos: <code>{trevos}</code>")
+                elif time_u:
+                    linhas.append(f"  <b>Jogo {i}:</b> <code>{dezenas}</code> ({time_u})")
+                else:
+                    linhas.append(f"  <b>Jogo {i}:</b> <code>{dezenas}</code>")
+            else:
+                dezenas = sorted([int(x) for x in str(jogo).replace("-", " ").split()])
+                linhas.append(f"  <b>Jogo {i}:</b> <code>{dezenas}</code>")
+
+    bolao = config.get("jogos_bolao", [])
+    if bolao:
+        cotas = config.get("meta_bolao", {}).get("quantidade_cotas", 1)
+        linhas.append(f"\n👥 <b>Jogos de Bolão ({cotas} cotas):</b>")
+        for i, jogo in enumerate(bolao, 1):
+            if isinstance(jogo, dict):
+                dezenas = sorted([int(x) for x in jogo.get("dezenas", "").replace("-", " ").split()])
+                linhas.append(f"  <b>Jogo {i}:</b> <code>{dezenas}</code>")
+            else:
+                dezenas = sorted([int(x) for x in str(jogo).replace("-", " ").split()])
+                linhas.append(f"  <b>Jogo {i}:</b> <code>{dezenas}</code>")
+
+    return "\n".join(linhas)
+
+
 def montar_mensagem_resultado(loteria: str, dados: dict, config: dict) -> tuple[str, str]:
     emoji    = EMOJIS.get(loteria, "🎰")
     num      = dados.get("numero", "?")
@@ -359,6 +394,7 @@ def executar_modo_ci():
     hoje       = agora.date()
     mensagens_enviadas = 0
     sem_janela: list[tuple] = []  # sorteios próximos sem alerta específico
+    is_manual = (os.environ.get("GITHUB_EVENT_NAME") != "schedule")
 
     # Verifica se há algum sorteio HOJE ou resultado pendente do passado
     tem_sorteio_hoje = False
@@ -371,8 +407,8 @@ def executar_modo_ci():
                     tem_sorteio_hoje = True
                     break
 
-    # Se não há sorteio hoje, restringe o resumo diário (digest) apenas para a execução das 15h BRT
-    if not tem_sorteio_hoje and agora.hour != 15:
+    # Se não há sorteio hoje, restringe o resumo diário (digest) apenas para a execução das 15h BRT (ou manual)
+    if not tem_sorteio_hoje and not is_manual and agora.hour != 15:
         log.info("Sem sorteios hoje ou pendentes. Executando silenciosamente (digest apenas às 15h BRT).")
         return
 
@@ -402,7 +438,7 @@ def executar_modo_ci():
         msg_wpp  = None
 
         # Se não há sorteio hoje, agrupamos todos os próximos (até 7 dias) no digest
-        if not tem_sorteio_hoje:
+        if not tem_sorteio_hoje and not is_manual:
             if 0 < dias_ate <= 7:
                 sem_janela.append((dt_sorteio, loteria, concurso, emoji))
             continue
@@ -439,40 +475,59 @@ def executar_modo_ci():
             )
             if config.get("jogos_bolao"): msg_wpp = msg_tg
 
-        # ── Hoje, falta > 3h: sem alerta (vai pro digest) ────────────
+        # ── Hoje (com antecedência > 3h): Confirmação dos Jogos de Hoje ──
         elif dias_ate == 0:
-            log.info("Sorteio de %s hoje às %s — mais de 3h, sem alerta.", loteria, hora_fmt)
-            sem_janela.append((dt_sorteio, loteria, concurso, emoji))
+            if is_manual or agora.hour == 15:
+                jogos_str = formatar_jogos_confirmacao(config)
+                msg_tg = (
+                    f"{emoji} <b>Confirmação de Jogos — Sorteio HOJE!</b>\n\n"
+                    f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
+                    f"📅 Sorteio <b>HOJE</b> às <b>{hora_fmt}</b>\n\n"
+                    f"{jogos_str}\n\n"
+                    f"<i>Apostas confirmadas! O bot acompanhará o sorteio e enviará o resultado automaticamente. Boa sorte! 🍀</i>"
+                )
+                if config.get("jogos_bolao"): msg_wpp = msg_tg
+            else:
+                log.info("Sorteio de %s hoje às %s — aguardando lembrete das 15h.", loteria, hora_fmt)
 
         # ── Amanhã (dia completo = janela de 24h naturais) ────────────
         elif dias_ate == 1:
-            msg_tg = (
-                f"{emoji} <b>🔔 Sorteio Amanhã!</b>\n\n"
-                f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
-                f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
-                f"Seus jogos já estão registrados. Boa sorte! 🍀"
-            )
-            if config.get("jogos_bolao"): msg_wpp = msg_tg
+            if is_manual or agora.hour == 15:
+                msg_tg = (
+                    f"{emoji} <b>🔔 Sorteio Amanhã!</b>\n\n"
+                    f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
+                    f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
+                    f"Seus jogos já estão registrados. Boa sorte! 🍀"
+                )
+                if config.get("jogos_bolao"): msg_wpp = msg_tg
+            else:
+                log.info("Sorteio de %s amanhã — aguardando lembrete das 15h.", loteria)
 
         # ── 3 dias antes (dia completo) ────────────────────────────────
         elif dias_ate == 3:
-            msg_tg = (
-                f"{emoji} <b>📅 Faltam 3 dias!</b>\n\n"
-                f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
-                f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
-                f"Prepare-se! Seus jogos estão registrados. 🍀"
-            )
-            if config.get("jogos_bolao"): msg_wpp = msg_tg
+            if is_manual or agora.hour == 15:
+                msg_tg = (
+                    f"{emoji} <b>📅 Faltam 3 dias!</b>\n\n"
+                    f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
+                    f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
+                    f"Prepare-se! Seus jogos estão registrados. 🍀"
+                )
+                if config.get("jogos_bolao"): msg_wpp = msg_tg
+            else:
+                log.info("Sorteio de %s em 3 dias — aguardando lembrete das 15h.", loteria)
 
         # ── 7 dias antes (dia completo) ────────────────────────────────
         elif dias_ate == 7:
-            msg_tg = (
-                f"{emoji} <b>🗓️ Faltam 7 dias!</b>\n\n"
-                f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
-                f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
-                f"Anote na agenda! Seus jogos estão registrados. 🍀"
-            )
-            if config.get("jogos_bolao"): msg_wpp = msg_tg
+            if is_manual or agora.hour == 15:
+                msg_tg = (
+                    f"{emoji} <b>🗓️ Faltam 7 dias!</b>\n\n"
+                    f"<b>{loteria.upper()}</b> — Concurso <b>{concurso}</b>\n"
+                    f"📅 {data_fmt} às <b>{hora_fmt}</b>\n\n"
+                    f"Anote na agenda! Seus jogos estão registrados. 🍀"
+                )
+                if config.get("jogos_bolao"): msg_wpp = msg_tg
+            else:
+                log.info("Sorteio de %s em 7 dias — aguardando lembrete das 15h.", loteria)
 
         # ── Dentro dos 7 dias mas sem janela → digest ──────────────────
         elif 0 < dias_ate <= 7:
